@@ -511,6 +511,18 @@ function sameCurrGroup(a,b){
   return false;
 }
 function subjFull(n,c){if(c&&c.subj)return c.subj;return M.info[n]?.subject||''}
+// 시수 부족 등으로 원래 과목이 아닌 걸 가르치며 보강하는 경우 — 보강 교과를 직접 고르거나 입력할 수 있게
+function allSubjects(){
+  const set=new Set();
+  for(const t of M.teachers)for(let d=0;d<5;d++)for(const p of PERIODS){const c=t.cells[d][p];if(c&&!c.block&&c.subj)set.add(c.subj)}
+  for(const n in M.info)if(M.info[n].subject)set.add(M.info[n].subject);
+  return [...set].sort((a,b)=>a.localeCompare(b,'ko'));
+}
+function subjPickerField(id,label,def){
+  return '<div class="field"><label>'+label+'</label>'+
+    '<input id="'+id+'" list="subjDatalist" value="'+(def||'').replace(/"/g,'&quot;')+'" placeholder="과목명 선택 또는 입력">'+
+    '<datalist id="subjDatalist">'+allSubjects().map(s=>'<option value="'+s.replace(/"/g,'&quot;')+'">').join('')+'</datalist></div>';
+}
 function teachesClassOnDay(name,gradeCls,day){
   const t=M.byName[name];if(!t)return false;
   for(const p of PERIODS){const c=t.cells[day][p];if(c&&!c.block&&(c.grade+'-'+c.cls)===gradeCls)return true}
@@ -926,12 +938,13 @@ function confirmVolunteer(otherTeacher,d,p){
   openModal('보강 대신 맡기',
     '<p class="muted">'+DAYNAMES[d]+' '+p+'교시 <b>'+c.label+'</b> ('+otherTeacher+' 선생님 수업)을 선생님이 대신 맡습니다.</p>'+
     '<div class="field"><label>결강 날짜</label><input id="mAbs" type="date" value="'+iso(dayDate(d))+'"></div>'+
+    subjPickerField('mCoverSubj','보강 교과 (실제로 무슨 수업을 하시나요? 시수 부족 등으로 다른 과목이면 바꿔주세요)',subjFull(ME,null))+
     '<div class="field"><label>보강계획 날짜 (되갚는 수업, 없으면 비움)</label><input id="mMk" type="date"></div>'+
     '<div class="field"><label>보강계획 교시</label><input id="mMkP" type="number" min="1" max="7"></div>'+
     reasonFields(),
     ()=>{Store.add({type:'sub',applicant:otherTeacher,sameDept:sameDept(ME,otherTeacher)||sameCurrGroup(ME,otherTeacher),reason:val('mReason'),writeDate:val('mWrite'),
       absent:{date:val('mAbs'),grade:c.grade,cls:c.cls,period:p,subject:subjFull(otherTeacher,c)},
-      cover:{teacher:ME,subject:''},makeup:{date:val('mMk'),period:val('mMkP')}});done()});
+      cover:{teacher:ME,subject:val('mCoverSubj')},makeup:{date:val('mMk'),period:val('mMkP')}});done()});
 }
 
 function showSubPanel(d,p){
@@ -1078,12 +1091,13 @@ function confirmSub(name,same,d,p){
   openModal((same?'동교과 ':'')+'보강 확정',
     '<p class="muted">'+DAYNAMES[d]+' '+p+'교시 <b>'+my.label+'</b> 를 '+name+' 선생님이 보강합니다.</p>'+
     '<div class="field"><label>결강 날짜</label><input id="mAbs" type="date" value="'+iso(dayDate(d))+'"></div>'+
+    subjPickerField('mCoverSubj','보강 교과 (그 선생님이 실제로 무슨 수업을 하시나요? 시수 부족 등으로 다른 과목이면 바꿔주세요)',subjFull(name,null))+
     '<div class="field"><label>보강계획 날짜 (되갚는 수업, 없으면 비움)</label><input id="mMk" type="date"></div>'+
     '<div class="field"><label>보강계획 교시</label><input id="mMkP" type="number" min="1" max="7"></div>'+
     reasonFields(),
     ()=>{Store.add({type:'sub',applicant:ME,sameDept:same,reason:val('mReason'),writeDate:val('mWrite'),
       absent:{date:val('mAbs'),grade:my.grade,cls:my.cls,period:p,subject:subjFull(ME,my)},
-      cover:{teacher:name,subject:''},makeup:{date:val('mMk'),period:val('mMkP')}});done()});
+      cover:{teacher:name,subject:val('mCoverSubj')},makeup:{date:val('mMk'),period:val('mMkP')}});done()});
 }
 function done(){PICK=DRAG=SWFROM=SWTO=SWPART=CHAINSEL=null;CHAINS=[];renderAll();
   document.getElementById('swResult').innerHTML='<div class="notice">변경이 저장되었습니다. 시간표 색과 아래 목록에서 확인하세요.</div>';}
