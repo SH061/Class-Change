@@ -194,33 +194,57 @@ table.grid-ed input,table.grid-ed select{width:100%;padding:5px 6px}
 </head>
 <body>
 
-<!-- LOGIN -->
-<section id="login" class="wrap" style="max-width:470px;margin-top:9vh">
-  <div class="card">
-    <h2 style="font-size:23px;margin-bottom:6px">수업교체 시스템</h2>
-    <p class="muted" style="margin-top:0">이름을 선택하면 이 PC에서는 다음부터 자동 로그인됩니다.</p>
-    <div id="loginBody"><p class="muted">데이터를 불러오는 중…</p></div>
-    <div class="hr"></div>
-    <details id="cfgDet">
-      <summary class="muted" style="cursor:pointer">처음 설정 (시간표 연결)</summary>
-      <div style="margin-top:12px;display:flex;flex-direction:column;gap:12px">
-        <div class="field"><label>① Apps Script Web App URL (추천 · 구글시트 실시간 연동)</label>
-          <input id="cfgApps" placeholder="https://script.google.com/macros/s/…/exec"></div>
-        <details><summary class="muted" style="cursor:pointer">또는 파일 / CSV 주소로 연결 (구식)</summary>
-          <div style="margin-top:10px;display:flex;flex-direction:column;gap:10px">
-            <div class="field"><label>시간표 파일 (.xlsx / .csv)</label><input type="file" id="fileTT" accept=".xlsx,.xls,.csv"></div>
-            <div class="field"><label>또는 구글시트 "웹에 게시" CSV 주소</label><input id="cfgTT" placeholder="https://docs.google.com/…&output=csv"></div>
+<!-- LOGIN / 공개 시간표 -->
+<section id="login" class="wrap" style="max-width:1240px;margin-top:4vh">
+  <div class="card" style="margin-bottom:16px">
+    <h2 id="pubTitle" style="font-size:22px;margin-bottom:4px">전체교사 시간표</h2>
+    <p class="muted" id="pubSub" style="margin-top:0">교체·보강으로 바뀐 내용이 그대로 반영되어 표시됩니다.</p>
+  </div>
+
+  <nav class="subtabs noprint">
+    <button data-pv="all" class="on" onclick="showPublicTab('all')">전체교사 시간표</button>
+    <button data-pv="cls" onclick="showPublicTab('cls')">반별 시간표</button>
+    <button data-pv="login" onclick="showPublicTab('login')">선생님 로그인</button>
+  </nav>
+
+  <div id="pub-all">
+    <div class="card" id="allTTWrap"><p class="muted">데이터를 불러오는 중…</p></div>
+  </div>
+
+  <div id="pub-cls" hidden>
+    <div class="card noprint" style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+      <label>반 선택</label><select id="clsSel" onchange="renderClassTT()" style="width:120px"></select>
+    </div>
+    <div class="card" id="clsTTWrap"></div>
+  </div>
+
+  <div id="pub-login" hidden style="max-width:470px">
+    <div class="card">
+      <h2 style="font-size:20px;margin-bottom:6px">선생님 로그인</h2>
+      <p class="muted" style="margin-top:0">이름을 선택하면 이 PC에서는 다음부터 자동 로그인됩니다.</p>
+      <div id="loginBody"><p class="muted">데이터를 불러오는 중…</p></div>
+      <div class="hr"></div>
+      <details id="cfgDet">
+        <summary class="muted" style="cursor:pointer">처음 설정 (시간표 연결)</summary>
+        <div style="margin-top:12px;display:flex;flex-direction:column;gap:12px">
+          <div class="field"><label>① Apps Script Web App URL (추천 · 구글시트 실시간 연동)</label>
+            <input id="cfgApps" placeholder="https://script.google.com/macros/s/…/exec"></div>
+          <details><summary class="muted" style="cursor:pointer">또는 파일 / CSV 주소로 연결 (구식)</summary>
+            <div style="margin-top:10px;display:flex;flex-direction:column;gap:10px">
+              <div class="field"><label>시간표 파일 (.xlsx / .csv)</label><input type="file" id="fileTT" accept=".xlsx,.xls,.csv"></div>
+              <div class="field"><label>또는 구글시트 "웹에 게시" CSV 주소</label><input id="cfgTT" placeholder="https://docs.google.com/…&output=csv"></div>
+            </div>
+          </details>
+          <div class="field"><label>② 교사·과목표 — 한 줄에 <b>이름,담당과목,교과군</b></label>
+            <textarea id="cfgTE" rows="4" placeholder="한환수,통합사회2,사회&#10;김서경,통합과학2,과학"></textarea></div>
+          <div class="row">
+            <button class="btn sm" onclick="saveCfgReload()">저장 후 불러오기</button>
+            <button class="btn sm ghost" onclick="loadSample()">샘플로 미리보기</button>
           </div>
-        </details>
-        <div class="field"><label>② 교사·과목표 — 한 줄에 <b>이름,담당과목,교과군</b></label>
-          <textarea id="cfgTE" rows="4" placeholder="한환수,통합사회2,사회&#10;김서경,통합과학2,과학"></textarea></div>
-        <div class="row">
-          <button class="btn sm" onclick="saveCfgReload()">저장 후 불러오기</button>
-          <button class="btn sm ghost" onclick="loadSample()">샘플로 미리보기</button>
+          <p class="muted" id="cfgMsg"></p>
         </div>
-        <p class="muted" id="cfgMsg"></p>
-      </div>
-    </details>
+      </details>
+    </div>
   </div>
 </section>
 
@@ -237,6 +261,8 @@ table.grid-ed input,table.grid-ed select{width:100%;padding:5px 6px}
     <button data-v="tt" class="on" onclick="showView('tt')">내 시간표</button>
     <button data-v="swap" onclick="showView('swap')">수업교체 / 보강</button>
     <button data-v="jilji" onclick="showView('jilji')">수업교체일지</button>
+    <button data-v="allTT" onclick="showView('allTT')">전체 시간표</button>
+    <button data-v="clsTT" onclick="showView('clsTT')">반별 시간표</button>
   </div></nav>
   <main class="wrap">
 
@@ -318,6 +344,21 @@ table.grid-ed input,table.grid-ed select{width:100%;padding:5px 6px}
       <div id="jiljiSelWrap"></div>
       <div id="jiljiWrap"></div>
     </section>
+
+    <!-- ===== 전체 시간표 ===== -->
+    <section id="view-allTT" hidden>
+      <h2 style="font-size:17px;margin-bottom:12px">전체교사 시간표</h2>
+      <div class="card" id="allTTWrap2"></div>
+    </section>
+
+    <!-- ===== 반별 시간표 ===== -->
+    <section id="view-clsTT" hidden>
+      <div class="card noprint" style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+        <h2 style="font-size:17px">반별 시간표</h2><span style="flex:1"></span>
+        <label>반 선택</label><select id="clsSel2" onchange="renderClassTT2()" style="width:120px"></select>
+      </div>
+      <div class="card" id="clsTTWrap2"></div>
+    </section>
   </main>
 </div>
 
@@ -343,7 +384,7 @@ const PERIODS=[1,2,3,4,5,6,7];
 const BLOCK_WORDS=['자율','동아리','청소','창체','창의적','재량','조회','종례','진로'];
 
 /* ===== 서식/설정 ===== */
-const FORM_DEF={school:'순천고등학교',title:'2026학년도 수업교체일지',appr1:'학년수업계',appr2:'교육과정부장',jeongyeol:true,weeks:10,managers:'',times:{1:'09:00',2:'10:00',3:'11:00',4:'12:00',5:'14:00',6:'15:00',7:'16:10'}};
+const FORM_DEF={school:'순천고등학교',semester:'2026학년도 2학기',title:'2026학년도 수업교체일지',appr1:'학년수업계',appr2:'교육과정부장',jeongyeol:true,weeks:10,managers:'',times:{1:'09:00',2:'10:00',3:'11:00',4:'12:00',5:'14:00',6:'15:00',7:'16:10'}};
 function getForm(){try{return Object.assign({},FORM_DEF,JSON.parse(lsGet(LS.form))||{})}catch(e){return Object.assign({},FORM_DEF)}}
 function setForm(f){lsSet(LS.form,JSON.stringify(f))}
 function isManager(){const m=(getForm().managers||'').split(/[,\s]+/).filter(Boolean);return !m.length||m.includes(ME)}
@@ -522,7 +563,16 @@ async function fetchAppsScript(url){
   return j.rows;
 }
 function showErr(e){document.getElementById('loginBody').innerHTML='<p class="err">불러오기 실패: '+e.message+'</p>'}
-function afterLoad(){renderLoginList();const u=lsGet(LS.user);if(u&&M.byName[u]){ME=u;enterApp()}}
+function afterLoad(){
+  renderLoginList();
+  updatePubTitle();
+  showPublicTab(PUBTAB);
+  const u=lsGet(LS.user);if(u&&M.byName[u]){ME=u;enterApp()}
+}
+function updatePubTitle(){
+  const f=getForm();const t=document.getElementById('pubTitle');
+  if(t)t.textContent=(f.semester?f.semester+' ':'')+f.school+' 전체교사 시간표';
+}
 function renderLoginList(){
   const b=document.getElementById('loginBody');
   if(!M.teachers.length){b.innerHTML='<p class="err">교사 명단을 찾지 못했습니다. 시간표 형식을 확인하세요.</p>';return}
@@ -541,10 +591,12 @@ function enterApp(){
 function renderAll(){renderPbar();renderTimetable();renderSwap();renderJilji();renderChgList();renderMgr()}
 function showView(v){
   document.querySelectorAll('nav.tabs button').forEach(b=>b.classList.toggle('on',b.dataset.v===v));
-  ['mgr','tt','swap','jilji'].forEach(x=>document.getElementById('view-'+x).hidden=v!==x);
+  ['mgr','tt','swap','jilji','allTT','clsTT'].forEach(x=>document.getElementById('view-'+x).hidden=v!==x);
   if(v==='jilji')renderJilji();
   if(v==='mgr')renderMgr();
   if(v==='tt')showTTSub(TTSUB);
+  if(v==='allTT')renderAllTeachersTT('allTTWrap2');
+  if(v==='clsTT')renderClassTTInit('clsSel2','clsTTWrap2');
 }
 let TTSUB='main';
 function showTTSub(sv){
@@ -621,6 +673,100 @@ function ttTable(name,opts){
   return h+'</tbody></table>';
 }
 function renderTimetable(){document.getElementById('ttWrap').innerHTML=ttTable(ME,{self:true})}
+
+/* ===== 공개 화면: 전체교사 시간표 / 반별 시간표 ===== */
+let PUBTAB='all';
+function showPublicTab(t){
+  PUBTAB=t;
+  document.querySelectorAll('#login nav.subtabs button').forEach(b=>b.classList.toggle('on',b.dataset.pv===t));
+  ['all','cls','login'].forEach(x=>{const el=document.getElementById('pub-'+x);if(el)el.hidden=x!==t});
+  if(!M.teachers.length)return;
+  if(t==='all')renderAllTeachersTT('allTTWrap');
+  if(t==='cls')renderClassTTInit('clsSel','clsTTWrap');
+}
+function renderAllTeachersTT(targetId){
+  const el=document.getElementById(targetId);if(!el)return;
+  if(!M.teachers.length){el.innerHTML='<p class="muted">데이터를 불러오는 중…</p>';return}
+  el.innerHTML=fullSchoolTable();
+}
+function fullSchoolTable(){
+  let h='<div style="overflow-x:auto"><table class="tt" style="width:max-content;min-width:100%;table-layout:auto">';
+  h+='<thead><tr><th style="min-width:78px;position:sticky;left:0;background:var(--cream-strong);z-index:1">교사</th>';
+  for(let d=0;d<5;d++)for(const p of PERIODS)h+='<th style="min-width:44px">'+DAYNAMES[d]+p+'</th>';
+  h+='</tr></thead><tbody>';
+  for(const t of M.teachers){
+    const marks=changeMarks(t.name);
+    h+='<tr><th style="text-align:left;padding-left:8px;position:sticky;left:0;background:var(--canvas);z-index:1">'+t.name+'</th>';
+    for(let d=0;d<5;d++)for(const p of PERIODS){
+      const c=t.cells[d][p];const k=marks[d+'-'+p];
+      let cls='slot';if(k)cls+=' '+k.k;
+      let inner='';
+      if(c)inner=c.block?'<span class="blk">'+c.label+'</span>':'<span class="cl">'+c.label+'</span>';
+      if(k)inner+='<span class="chg">'+k.note+'</span>';
+      h+='<td class="'+cls+'" style="height:34px">'+inner+'</td>';
+    }
+    h+='</tr>';
+  }
+  h+='</tbody></table></div>';
+  return h;
+}
+function allClasses(){
+  const set=new Set();
+  for(const t of M.teachers)for(let d=0;d<5;d++)for(const p of PERIODS){
+    const c=t.cells[d][p];if(c&&!c.block&&c.grade&&c.cls)set.add(c.grade+'-'+c.cls);
+  }
+  return[...set].sort((a,b)=>{const[ag,ac]=a.split('-').map(Number),[bg,bc]=b.split('-').map(Number);return ag-bg||ac-bc});
+}
+function classScheduleLive(gradeCls){
+  const cells=[[],[],[],[],[]];for(let d=0;d<5;d++)for(const p of PERIODS)cells[d][p]=null;
+  for(const t of M.teachers)for(let d=0;d<5;d++)for(const p of PERIODS){
+    const c=t.cells[d][p];
+    if(c&&!c.block&&(c.grade+'-'+c.cls)===gradeCls)cells[d][p]={teacher:t.name,subject:subjFull(t.name,c)};
+  }
+  for(const r of Store.all()){
+    const a=r.absent;
+    if((a.grade+'-'+a.cls)!==gradeCls)continue;
+    const ad=wd(a.date);
+    if(ad>=0&&iso(dayDate(ad))===a.date){
+      if(r.type==='sub')cells[ad][a.period]={teacher:r.cover.teacher,subject:a.subject,note:'보강'};
+      else cells[ad][a.period]={empty:true,note:r.makeup&&r.makeup.date?('→ '+md(dparse(r.makeup.date))+' '+r.makeup.period+'교시'):'결강'};
+    }
+    if(r.type==='swap'&&r.makeup&&r.makeup.date){
+      const mdi=wd(r.makeup.date);
+      if(mdi>=0&&iso(dayDate(mdi))===r.makeup.date)cells[mdi][r.makeup.period]={teacher:r.applicant,subject:a.subject,note:'이동해 옴'};
+    }
+  }
+  return cells;
+}
+function renderClassTTGeneric(selId,wrapId){
+  const sel=document.getElementById(selId);if(!sel||!sel.value)return;
+  const gradeCls=sel.value;const cells=classScheduleLive(gradeCls);const times=getForm().times;
+  let h='<table class="tt"><colgroup><col class="phead">'+DAYNAMES.map(()=>'<col>').join('')+'</colgroup><thead><tr><th>교시</th>'+
+    DAYNAMES.map((d,i)=>'<th>'+d+'<br><span style="font-weight:400;font-size:10px;color:#8e8b82">'+md(dayDate(i))+'</span></th>').join('')+'</tr></thead><tbody>';
+  for(const p of PERIODS){
+    h+='<tr><th>'+p+'<br><span style="font-weight:400;font-size:9px;color:#8e8b82">'+(times[p]||'')+'</span></th>';
+    for(let d=0;d<5;d++){
+      const blk=dayBlocked(d),c=cells[d][p];
+      if(blk&&(blk.type!=='단축'||p>(blk.last||7))){h+='<td class="slot holiday"><span class="blk">'+(blk.type==='단축'?'단축':blk.type)+'</span></td>';continue}
+      let cls='slot',inner='';
+      if(c&&c.empty){cls+=' empty mk-out';inner='<span class="chg">'+c.note+'</span>'}
+      else if(c){cls+=' has';if(c.note)cls+=(c.note==='보강'?' mk-sub':' mk-in');
+        inner='<span class="cl">'+(c.subject||'')+'</span><span class="sub">'+c.teacher+'</span>';if(c.note)inner+='<span class="chg">'+c.note+'</span>';}
+      else cls+=' empty';
+      h+='<td class="'+cls+'">'+inner+'</td>';
+    }
+    h+='</tr>';
+  }
+  h+='</tbody></table>';
+  const wrap=document.getElementById(wrapId);if(wrap)wrap.innerHTML=h;
+}
+function renderClassTT(){renderClassTTGeneric('clsSel','clsTTWrap')}
+function renderClassTT2(){renderClassTTGeneric('clsSel2','clsTTWrap2')}
+function renderClassTTInit(selId,wrapId){
+  const sel=document.getElementById(selId);if(!sel)return;
+  if(!sel.options.length){allClasses().forEach(c=>{const o=document.createElement('option');o.value=c;o.textContent=c+'반';sel.appendChild(o)})}
+  renderClassTTGeneric(selId,wrapId);
+}
 
 /* ===== 수업교체 (2분할 + 미리보기) ===== */
 let DRAG=null,PICK=null,SWFROM=null,SWTO=null,SWPART=null;
@@ -1008,6 +1154,7 @@ function renderMgr(){
       <div class="field"><label>학교명</label><input id="fSchool" value="${f.school}"></div>
       <div class="field" style="flex:1;min-width:220px"><label>문서 제목</label><input id="fTitle" value="${f.title}"></div>
     </div>
+    <div class="field" style="margin-top:8px"><label>학기 표시 (전체교사 시간표 화면 제목에 씀, 예: 2026학년도 2학기)</label><input id="fSemester" value="${f.semester||''}"></div>
     <div class="row" style="margin-top:8px">
       <div class="field"><label>결재란 1</label><input id="fA1" value="${f.appr1}"></div>
       <div class="field"><label>결재란 2</label><input id="fA2" value="${f.appr2}"></div>
@@ -1096,12 +1243,12 @@ function mgrConvertCopy(){
 }
 function mgrSaveForm(){
   const f=getForm();
-  f.school=val('fSchool');f.title=val('fTitle');f.appr1=val('fA1');f.appr2=val('fA2');
+  f.school=val('fSchool');f.title=val('fTitle');f.appr1=val('fA1');f.appr2=val('fA2');f.semester=val('fSemester');
   f.jeongyeol=document.getElementById('fJ').checked;
   f.weeks=Math.max(2,+val('mWeeks')||10);f.managers=val('fMgr').trim();
   const times={};PERIODS.forEach(p=>times[p]=val('mT'+p));f.times=times;
   setForm(f);setAcademic(AC.filter(x=>x.date));
-  computeWeeks();renderAll();alert('저장되었습니다.');
+  computeWeeks();renderAll();updatePubTitle();alert('저장되었습니다.');
 }
 
 /* ===== 인쇄 ===== */
