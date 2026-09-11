@@ -82,6 +82,14 @@ table.tt td.mk-fill .cl{color:var(--ink)}
 table.tt td.holiday{background:repeating-linear-gradient(45deg,#f0ede6,#f0ede6 6px,#e7e2d8 6px,#e7e2d8 12px);color:var(--muted-soft)}
 table.tt td .chg{display:block;font-size:9px;font-weight:700;margin-top:2px}
 .legend{display:flex;gap:14px;flex-wrap:wrap;font-size:11px;color:var(--muted);margin-top:8px}
+/* 연쇄 이동 미리보기: 3명 시간표를 세로가 아니라 가로로 나란히 */
+.chainrow{display:flex;gap:14px;align-items:flex-start;overflow-x:auto;padding-bottom:6px}
+.chainrow .chaincol{flex:1 1 0;min-width:280px}
+.chainrow .chaincol h3{font-size:13px;margin-bottom:6px;white-space:nowrap}
+.chainrow .chaincol table.tt th,.chainrow .chaincol table.tt td{font-size:11px;padding:3px 2px}
+.chainrow .chaincol table.tt td.slot{height:50px}
+.chainrow .chaincol table.tt td .cl{font-size:14px}
+.chainrow .chaincol table.tt td .sub{font-size:9px}
 .legend i{width:11px;height:11px;border-radius:3px;display:inline-block;vertical-align:-1px;margin-right:4px}
 table.tt td.hit{background:var(--yellow)!important;outline:2px solid var(--primary-active);outline-offset:-2px}
 .chip{display:inline-block;border:1px solid var(--hairline);background:#fff;border-radius:99px;padding:4px 12px;font-size:12px;cursor:pointer;margin:0 6px 6px 0}
@@ -1013,9 +1021,12 @@ function renderChainPreview(){
   document.getElementById('swGrid').innerHTML=ttTable(ME,{marks:markA});
   let h='<button class="btn sm ghost" onclick="doMove(SWFROM,SWTO)">← 목록으로</button>';
   h+='<p class="muted" style="margin:10px 0">'+ME+' → '+ch.B+' → '+ch.C+' → '+ME+' 순서로 3명의 수업이 돌아가며 자리를 바꿉니다.</p>';
-  h+='<h3 style="font-size:14px;margin-bottom:6px">'+ME+' (나)</h3>'+ttTable(ME,{marks:markA});
-  h+='<h3 style="font-size:14px;margin:14px 0 6px">'+ch.B+'</h3>'+ttTable(ch.B,{marks:markB});
-  h+='<h3 style="font-size:14px;margin:14px 0 6px">'+ch.C+'</h3>'+ttTable(ch.C,{marks:markC});
+  h+='<div class="legend" style="margin-bottom:10px"><span><i style="background:var(--yellow)"></i>이전 수업 (비워짐)</span><span><i style="background:var(--mint)"></i>수정된 수업 (채워짐)</span></div>';
+  h+='<div class="chainrow">';
+  h+='<div class="chaincol"><h3>'+ME+' (나)</h3>'+ttTable(ME,{marks:markA})+'</div>';
+  h+='<div class="chaincol"><h3>'+ch.B+'</h3>'+ttTable(ch.B,{marks:markB})+'</div>';
+  h+='<div class="chaincol"><h3>'+ch.C+'</h3>'+ttTable(ch.C,{marks:markC})+'</div>';
+  h+='</div>';
   h+='<button class="btn" style="margin-top:10px" onclick="confirmChain()">이 조합으로 3명 모두 교체 확정</button>';
   document.getElementById('swResult').innerHTML=h;
 }
