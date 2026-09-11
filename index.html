@@ -62,18 +62,18 @@ main{padding:22px 0 90px}
 
 /* timetable */
 table.tt{border-collapse:collapse;width:100%;background:var(--canvas);table-layout:fixed}
-table.tt th,table.tt td{border:1px solid var(--hairline);text-align:center;padding:4px 3px;font-size:12px}
+table.tt th,table.tt td{border:1px solid var(--hairline);text-align:center;padding:5px 4px;font-size:14px}
 table.tt th{background:var(--cream-strong);color:var(--ink);font-weight:600}
-table.tt col.phead{width:52px}
-table.tt td.slot{height:46px;vertical-align:middle}
+table.tt col.phead{width:60px}
+table.tt td.slot{height:56px;vertical-align:middle}
 table.tt td.has{background:#fff;cursor:grab}
 table.tt td.has:active{cursor:grabbing}
 table.tt td.selm.has:hover{outline:2px solid var(--primary);outline-offset:-2px}
 table.tt td.empty.drop-ok{outline:2px dashed var(--teal);outline-offset:-2px;background:#eef7f4}
 table.tt td.picked{background:var(--amber);color:#fff}
 table.tt td.picked .cl{color:#fff}
-table.tt td .cl{font-weight:700;color:var(--ink);font-size:13px}
-table.tt td .sub{display:block;font-size:10px;color:var(--muted)}
+table.tt td .cl{font-weight:700;color:var(--ink);font-size:19px}
+table.tt td .sub{display:block;font-size:11px;color:var(--muted)}
 table.tt td .elec{display:inline-block;margin-top:1px;font-size:9px;background:var(--teal);color:#fff;border-radius:var(--r-pill);padding:0 5px;font-weight:700}
 table.tt td .blk{color:var(--muted-soft);font-size:11px}
 table.tt td.mk-vac{background:var(--yellow)}
@@ -733,9 +733,9 @@ function ttTable(name,opts){
   opts=opts||{};const t=M.byName[name];const mk=opts.marks||(opts.self?changeMarks(name):{});
   const times=getForm().times;
   let h='<table class="tt"><colgroup><col class="phead">'+DAYNAMES.map(()=>'<col>').join('')+'</colgroup><thead><tr><th>교시</th>'+
-    DAYNAMES.map((d,i)=>'<th>'+d+'<br><span style="font-weight:400;font-size:10px;color:#8e8b82">'+md(dayDate(i))+'</span></th>').join('')+'</tr></thead><tbody>';
+    DAYNAMES.map((d,i)=>'<th><span style="font-size:16px;font-weight:700">'+d+'</span><br><span style="font-weight:500;font-size:12px;color:#8e8b82">'+md(dayDate(i))+'</span></th>').join('')+'</tr></thead><tbody>';
   for(const p of PERIODS){
-    h+='<tr><th>'+p+'<br><span style="font-weight:400;font-size:9px;color:#8e8b82">'+(times[p]||'')+'</span></th>';
+    h+='<tr><th><span style="font-size:16px;font-weight:700">'+p+'</span><br><span style="font-weight:500;font-size:11px;color:#8e8b82">'+(times[p]||'')+'</span></th>';
     for(let d=0;d<5;d++){
       const blk=dayBlocked(d),cls=['slot'];let inner='';
       if(blk&&(blk.type!=='단축'||p>(blk.last||7))){
@@ -848,9 +848,9 @@ function renderClassTTGeneric(selId,wrapId){
   const sel=document.getElementById(selId);if(!sel||!sel.value)return;
   const gradeCls=sel.value;const cells=classScheduleLive(gradeCls);const times=getForm().times;
   let h='<table class="tt"><colgroup><col class="phead">'+DAYNAMES.map(()=>'<col>').join('')+'</colgroup><thead><tr><th>교시</th>'+
-    DAYNAMES.map((d,i)=>'<th>'+d+'<br><span style="font-weight:400;font-size:10px;color:#8e8b82">'+md(dayDate(i))+'</span></th>').join('')+'</tr></thead><tbody>';
+    DAYNAMES.map((d,i)=>'<th><span style="font-size:16px;font-weight:700">'+d+'</span><br><span style="font-weight:500;font-size:12px;color:#8e8b82">'+md(dayDate(i))+'</span></th>').join('')+'</tr></thead><tbody>';
   for(const p of PERIODS){
-    h+='<tr><th>'+p+'<br><span style="font-weight:400;font-size:9px;color:#8e8b82">'+(times[p]||'')+'</span></th>';
+    h+='<tr><th><span style="font-size:16px;font-weight:700">'+p+'</span><br><span style="font-weight:500;font-size:11px;color:#8e8b82">'+(times[p]||'')+'</span></th>';
     for(let d=0;d<5;d++){
       const blk=dayBlocked(d),c=cells[d][p];
       if(blk&&(blk.type!=='단축'||p>(blk.last||7))){h+='<td class="slot holiday"><span class="blk">'+(blk.type==='단축'?'단축':blk.type)+'</span></td>';continue}
