@@ -65,16 +65,16 @@ table.tt{border-collapse:collapse;width:100%;background:var(--canvas);table-layo
 table.tt th,table.tt td{border:1px solid var(--hairline);text-align:center;padding:5px 4px;font-size:14px}
 table.tt th{background:var(--cream-strong);color:var(--ink);font-weight:600}
 table.tt col.phead{width:60px}
-table.tt td.slot{height:56px;vertical-align:middle}
+table.tt td.slot{height:66px;vertical-align:middle}
 table.tt td.has{background:#fff;cursor:grab}
 table.tt td.has:active{cursor:grabbing}
 table.tt td.selm.has:hover{outline:2px solid var(--primary);outline-offset:-2px}
 table.tt td.empty.drop-ok{outline:2px dashed var(--teal);outline-offset:-2px;background:#eef7f4}
 table.tt td.picked{background:var(--amber);color:#fff}
 table.tt td.picked .cl{color:#fff}
-table.tt td .cl{font-weight:700;color:var(--ink);font-size:19px}
-table.tt td .sub{display:block;font-size:11px;color:var(--muted)}
-table.tt td .elec{display:inline-block;margin-top:1px;font-size:9px;background:var(--teal);color:#fff;border-radius:var(--r-pill);padding:0 5px;font-weight:700}
+table.tt td .cl{font-weight:700;color:var(--ink);font-size:19px;line-height:1.15}
+table.tt td .sub{display:block;font-size:11px;color:var(--muted);line-height:1.2}
+table.tt td .elec{display:inline-block;margin-top:0;font-size:9px;line-height:1.4;background:var(--teal);color:#fff;border-radius:var(--r-pill);padding:0 5px;font-weight:700}
 table.tt td .blk{color:var(--muted-soft);font-size:11px}
 table.tt td.mk-vac{background:var(--yellow)}
 table.tt td.mk-fill{background:var(--mint)}
@@ -939,6 +939,7 @@ function showSubPanel(d,p){
 }
 function doMove(from,to){
   SWFROM=from;SWTO=to;SWPART=null;
+  renderSwap(); // 미리보기에서 돌아왔을 수 있으니 왼쪽 시간표를 평소 모습으로 복원
   const my=effectiveCell(ME,from.d,from.p),box=document.getElementById('swResult');
   const res=movePartners(from,to);
   let h='<div class="info"><b>'+DAYNAMES[from.d]+'('+md(dayDate(from.d))+') '+from.p+'교시 '+my.label+'</b>'+
@@ -970,6 +971,10 @@ function renderPreview(){
   const my=effectiveCell(ME,from.d,from.p),pc=effectiveCell(P,to.d,to.p);
   const marks={};marks[to.d+'-'+to.p]={k:'vac'};
   if(isFree(P,from.d,from.p))marks[from.d+'-'+from.p]={k:'fill',cell:{grade:pc.grade,cls:pc.cls,label:pc.label,subj:pc.subj||subjFull(P,pc),elective:false}};
+  // 내 시간표(왼쪽)도 같이 미리보기: 비워지는 자리=노란색, 새로 채워지는 자리=민트색
+  const myMarks={};myMarks[from.d+'-'+from.p]={k:'vac'};
+  myMarks[to.d+'-'+to.p]={k:'fill',cell:{grade:my.grade,cls:my.cls,label:my.label,subj:my.subj||subjFull(ME,my),elective:false}};
+  document.getElementById('swGrid').innerHTML=ttTable(ME,{marks:myMarks});
   let h='<button class="btn sm ghost" onclick="doMove(SWFROM,SWTO)">← 교사 목록</button>';
   h+='<h3 style="font-size:14px;margin:10px 0 6px">상대 교사 시간표 · '+P+'</h3>';
   h+=ttTable(P,{marks});
@@ -998,6 +1003,7 @@ function renderChainPreview(){
   markB[ch.S3.d+'-'+ch.S3.p]={k:'fill',cell:{grade:ch.cB.grade,cls:ch.cB.cls,label:ch.cB.label,subj:ch.cB.subj||subjFull(ch.B,ch.cB)}};
   const markC={};markC[ch.S3.d+'-'+ch.S3.p]={k:'vac'};
   markC[from.d+'-'+from.p]={k:'fill',cell:{grade:ch.cC.grade,cls:ch.cC.cls,label:ch.cC.label,subj:ch.cC.subj||subjFull(ch.C,ch.cC)}};
+  document.getElementById('swGrid').innerHTML=ttTable(ME,{marks:markA});
   let h='<button class="btn sm ghost" onclick="doMove(SWFROM,SWTO)">← 목록으로</button>';
   h+='<p class="muted" style="margin:10px 0">'+ME+' → '+ch.B+' → '+ch.C+' → '+ME+' 순서로 3명의 수업이 돌아가며 자리를 바꿉니다.</p>';
   h+='<h3 style="font-size:14px;margin-bottom:6px">'+ME+' (나)</h3>'+ttTable(ME,{marks:markA});
