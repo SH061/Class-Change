@@ -65,7 +65,7 @@ table.tt{border-collapse:collapse;width:100%;background:var(--canvas);table-layo
 table.tt th,table.tt td{border:1px solid var(--hairline);text-align:center;padding:5px 4px;font-size:14px}
 table.tt th{background:var(--cream-strong);color:var(--ink);font-weight:600}
 table.tt col.phead{width:60px}
-table.tt td.slot{height:66px;vertical-align:middle}
+table.tt td.slot{height:74px;vertical-align:middle}
 table.tt td.has{background:#fff;cursor:grab}
 table.tt td.has:active{cursor:grabbing}
 table.tt td.selm.has:hover{outline:2px solid var(--primary);outline-offset:-2px}
@@ -74,7 +74,7 @@ table.tt td.picked{background:var(--amber);color:#fff}
 table.tt td.picked .cl{color:#fff}
 table.tt td .cl{font-weight:700;color:var(--ink);font-size:19px;line-height:1.15}
 table.tt td .sub{display:block;font-size:11px;color:var(--muted);line-height:1.2}
-table.tt td .elec{display:inline-block;margin-top:0;font-size:9px;line-height:1.4;background:var(--teal);color:#fff;border-radius:var(--r-pill);padding:0 5px;font-weight:700}
+table.tt td .elec{display:block;width:fit-content;margin:1px auto 0;font-size:18px;line-height:1.3;background:var(--teal);color:#fff;border-radius:var(--r-pill);padding:0 7px;font-weight:700}
 table.tt td .blk{color:var(--muted-soft);font-size:11px}
 table.tt td.mk-vac{background:var(--yellow)}
 table.tt td.mk-fill{background:var(--mint)}
@@ -90,6 +90,7 @@ table.tt td .chg{display:block;font-size:9px;font-weight:700;margin-top:2px}
 .chainrow .chaincol table.tt td.slot{height:50px}
 .chainrow .chaincol table.tt td .cl{font-size:14px}
 .chainrow .chaincol table.tt td .sub{font-size:9px}
+.chainrow .chaincol table.tt td .elec{font-size:10px;padding:0 5px}
 .legend i{width:11px;height:11px;border-radius:3px;display:inline-block;vertical-align:-1px;margin-right:4px}
 table.tt td.hit{background:var(--yellow)!important;outline:2px solid var(--primary-active);outline-offset:-2px}
 .chip{display:inline-block;border:1px solid var(--hairline);background:#fff;border-radius:99px;padding:4px 12px;font-size:12px;cursor:pointer;margin:0 6px 6px 0}
@@ -314,8 +315,14 @@ table.grid-ed input,table.grid-ed select{width:100%;padding:5px 6px}
       <div id="pbarSW"></div>
       <div class="split">
         <div class="panel">
-          <h2 style="font-size:16px;margin-bottom:2px">내 시간표</h2>
+          <div class="row" style="align-items:center;margin-bottom:2px">
+            <h2 style="font-size:16px;margin:0" id="swActorLabel">내 시간표</h2>
+            <span style="flex:1"></span>
+            <label style="font-size:12px">다른 교사 시간표 변경</label>
+            <select id="swActorSel" onchange="setSwActor(this.value)" style="width:140px"></select>
+          </div>
           <p class="muted" style="margin-top:2px">바꿀 수업을 <b>빈 칸으로 드래그</b>(또는 클릭→빈 칸 클릭). 수업만 클릭하면 보강 신청. <b>빈 칸만 클릭</b>하면 그 시간 다른 반 수업을 대신 맡을 수 있습니다.</p>
+          <p class="muted" id="swActorNotice" hidden>지금 <b id="swActorName"></b> 선생님의 시간표를 대신 변경하고 있습니다. 확정하면 그 선생님의 수업교체일지에 기록됩니다.</p>
           <div id="swGrid"></div>
         </div>
         <div class="panel" id="swRight">
@@ -545,25 +552,26 @@ function classTeacherAt(gradeCls,day,period,exclude){
   }
   return null;
 }
-function movePartners(from,to){
-  const my=effectiveCell(ME,from.d,from.p);const out=[];
+function movePartners(from,to,actor){
+  actor=actor||ME;
+  const my=effectiveCell(actor,from.d,from.p);const out=[];
   if(!my||my.block)return{err:'이동할 수 있는 수업이 아닙니다.'};
   if(my.elective)return{err:'선택과목은 수강자가 달라 수업교체가 불가능합니다. (동교과 보강만 가능)'};
   const myClass=my.grade+'-'+my.cls;
   for(const t of M.teachers){
-    if(t.name===ME)continue;
+    if(t.name===actor)continue;
     const c2=effectiveCell(t.name,to.d,to.p);
     if(!c2||c2.block||c2.elective)continue;
     if(!isFreeEff(t.name,from.d,from.p))continue;
     const partnerClass=c2.grade+'-'+c2.cls;
     // 반 충돌 체크: 이동하려는 시간에 그 반 수업이 이미 다른 교사로 차 있으면 불가
-    if(classTeacherAt(myClass,to.d,to.p,[ME,t.name]))continue;
-    if(classTeacherAt(partnerClass,from.d,from.p,[ME,t.name]))continue;
+    if(classTeacherAt(myClass,to.d,to.p,[actor,t.name]))continue;
+    if(classTeacherAt(partnerClass,from.d,from.p,[actor,t.name]))continue;
     let tier;
     if(teachesClassOnDay(t.name,myClass,from.d))tier=1;
     else if(teachesClassAnyDay(t.name,myClass))tier=2;
-    else if(sameDept(ME,t.name))tier=3;      // 동교과
-    else if(sameCurrGroup(ME,t.name))tier=4; // 동교과군(동교과가 없을 때 확장)
+    else if(sameDept(actor,t.name))tier=3;      // 동교과
+    else if(sameCurrGroup(actor,t.name))tier=4; // 동교과군(동교과가 없을 때 확장)
     else continue; // 이 반과 무관하고 교과(군)도 다른 교사는 후보에서 제외
     out.push({partner:t.name,cls:c2,tier});
   }
@@ -572,31 +580,32 @@ function movePartners(from,to){
 }
 // 직접 1:1로는 안 될 때 — 교사 한 명(B)을 더 거치는 3자 순환 이동(연쇄 이동) 후보 찾기
 // 나(from→to) / B(to→S3) / C(S3→from) 세 사람이 서로 맞물려 도는 구조
-function findChains(from,to){
-  const my=effectiveCell(ME,from.d,from.p);
+function findChains(from,to,actor){
+  actor=actor||ME;
+  const my=effectiveCell(actor,from.d,from.p);
   if(!my||my.block||my.elective)return[];
   const myClass=my.grade+'-'+my.cls;
   const results=[];
   for(const B of M.teachers){
-    if(B.name===ME)continue;
+    if(B.name===actor)continue;
     const cB=effectiveCell(B.name,to.d,to.p);
     if(!cB||cB.block||cB.elective)continue;
     if(isFreeEff(B.name,from.d,from.p))continue; // 직접 교체가 되면 연쇄까지 갈 필요 없음(중복 제외)
     // 그 시간(to)에 내 반(myClass) 수업이 B 말고 다른 사람과 이미 겹치면 이 B는 후보가 될 수 없음
     // (버그였던 부분: 예전엔 이 조건을 B를 정하기도 전에 통째로 검사해서 거의 항상 0건이 나왔음)
-    if(classTeacherAt(myClass,to.d,to.p,[ME,B.name]))continue;
+    if(classTeacherAt(myClass,to.d,to.p,[actor,B.name]))continue;
     const clsB=cB.grade+'-'+cB.cls;
     for(let d3=0;d3<5;d3++)for(const p3 of PERIODS){
       if(d3===to.d&&p3===to.p)continue;if(d3===from.d&&p3===from.p)continue;
       if(!isFreeEff(B.name,d3,p3))continue;
       for(const C of M.teachers){
-        if(C.name===ME||C.name===B.name)continue;
+        if(C.name===actor||C.name===B.name)continue;
         const cC=effectiveCell(C.name,d3,p3);
         if(!cC||cC.block||cC.elective)continue;
         if(!isFreeEff(C.name,from.d,from.p))continue;
         const clsC=cC.grade+'-'+cC.cls;
         if(classTeacherAt(clsB,d3,p3,[B.name,C.name]))continue;
-        if(classTeacherAt(clsC,from.d,from.p,[C.name,ME]))continue;
+        if(classTeacherAt(clsC,from.d,from.p,[C.name,actor]))continue;
         results.push({B:B.name,cB,S3:{d:d3,p:p3},C:C.name,cC});
         if(results.length>=8)return results;
       }
@@ -604,12 +613,13 @@ function findChains(from,to){
   }
   return results;
 }
-function subCandidates(d,p){
-  const my=effectiveCell(ME,d,p);if(!my||my.block)return{same:[],group:[],other:[]};
+function subCandidates(d,p,actor){
+  actor=actor||ME;
+  const my=effectiveCell(actor,d,p);if(!my||my.block)return{same:[],group:[],other:[]};
   const same=[],group=[],other=[];
-  for(const t of M.teachers){if(t.name===ME)continue;if(!isFreeEff(t.name,d,p))continue;
-    if(sameDept(ME,t.name))same.push(t.name);
-    else if(sameCurrGroup(ME,t.name))group.push(t.name);
+  for(const t of M.teachers){if(t.name===actor)continue;if(!isFreeEff(t.name,d,p))continue;
+    if(sameDept(actor,t.name))same.push(t.name);
+    else if(sameCurrGroup(actor,t.name))group.push(t.name);
     else other.push(t.name);
   }
   return{same,group,other,elective:my.elective};
@@ -773,8 +783,9 @@ function ttTable(name,opts){
       if(opts.sel&&opts.sel.d===d&&opts.sel.p===p)cls.push('picked');
       if(opts.selectable&&c&&!c.block)cls.push('selm');
       if(c){if(c.block)inner='<span class="blk">'+c.label+'</span>';
-        else{inner='<span class="cl">'+c.label+'</span>';const sf=subjFull(name,c);if(sf)inner+='<span class="sub">'+sf+'</span>';
-          if(c.elective)inner+='<br><span class="elec">선택</span>';}}
+        else{inner='<span class="cl">'+c.label+'</span>';
+          if(c.grade&&c.cls){const sf=subjFull(name,c);if(sf)inner+='<span class="sub">'+sf+'</span>';}
+          if(c.elective)inner+='<span class="elec">선택</span>';}}
       let attr='';
       if(opts.selectable){
         if(c&&!c.block)attr=' draggable="true" ondragstart="dragStart(event,'+d+','+p+')" onclick="slotClick('+d+','+p+')"';
@@ -835,7 +846,7 @@ function fullSchoolTable(){
       const gc=c&&c.grade&&c.cls?(c.grade+'-'+c.cls):null;
       if(ALLTT_HILITE&&gc===ALLTT_HILITE)cls+=' hit';
       let inner='';
-      if(c)inner=c.block?'<span class="blk">'+c.label+'</span>':('<span class="cl">'+c.label+'</span><span class="sub">'+(subjFull(t.name,c)||'')+'</span>');
+      if(c)inner=c.block?'<span class="blk">'+c.label+'</span>':('<span class="cl">'+c.label+'</span>'+((c.grade&&c.cls)?'<span class="sub">'+(subjFull(t.name,c)||'')+'</span>':''));
       h+='<td class="'+cls+'" style="height:38px">'+inner+'</td>';
     }
     h+='</tr>';
@@ -910,8 +921,28 @@ function renderClassTTInit(selId,wrapId){
 }
 
 /* ===== 수업교체 (2분할 + 미리보기) ===== */
-let DRAG=null,PICK=null,SWFROM=null,SWTO=null,SWPART=null,CHAINS=[],CHAINSEL=null;
-function renderSwap(){document.getElementById('swGrid').innerHTML=ttTable(ME,{selectable:true,sel:PICK,effective:true})}
+let DRAG=null,PICK=null,SWFROM=null,SWTO=null,SWPART=null,CHAINS=[],CHAINSEL=null,SWACTOR=null;
+// 수업교체 탭에서 "누구의" 시간표를 다루는지 — 기본은 로그인한 나, 필요하면 다른 교사로 전환
+function setSwActor(name){
+  SWACTOR=name;PICK=DRAG=SWFROM=SWTO=SWPART=CHAINSEL=null;CHAINS=[];
+  const box=document.getElementById('swResult');if(box)box.innerHTML='';
+  renderSwap();
+}
+function updateSwActorUI(){
+  const sel=document.getElementById('swActorSel');if(!sel)return;
+  if(!sel.options.length||sel.options.length!==M.teachers.length)
+    sel.innerHTML=M.teachers.map(t=>'<option value="'+t.name+'">'+t.name+'</option>').join('');
+  sel.value=SWACTOR;
+  const isMe=SWACTOR===ME;
+  const lab=document.getElementById('swActorLabel');if(lab)lab.textContent=isMe?'내 시간표':(SWACTOR+' 시간표');
+  const notice=document.getElementById('swActorNotice');if(notice)notice.hidden=isMe;
+  const nameEl=document.getElementById('swActorName');if(nameEl)nameEl.textContent=SWACTOR;
+}
+function renderSwap(){
+  if(!SWACTOR)SWACTOR=ME;
+  updateSwActorUI();
+  document.getElementById('swGrid').innerHTML=ttTable(SWACTOR,{selectable:true,sel:PICK,effective:true});
+}
 function dragStart(e,d,p){DRAG={d,p};PICK=null;e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('t','1')}
 function dragOver(e){e.preventDefault();e.currentTarget.classList.add('drop-ok')}
 function dragLeave(e){e.currentTarget.classList.remove('drop-ok')}
@@ -922,15 +953,15 @@ function showVolunteerPanel(d,p){
   const box=document.getElementById('swResult');
   const candidates=[];
   for(const t of M.teachers){
-    if(t.name===ME)continue;
+    if(t.name===SWACTOR)continue;
     const c=effectiveCell(t.name,d,p);
     if(!c||c.block||c.elective)continue;
     let tier;
-    if(sameDept(ME,t.name))tier=1;else if(sameCurrGroup(ME,t.name))tier=2;else continue;
+    if(sameDept(SWACTOR,t.name))tier=1;else if(sameCurrGroup(SWACTOR,t.name))tier=2;else continue;
     candidates.push({teacher:t.name,cls:c,tier});
   }
   candidates.sort((a,b)=>a.tier-b.tier||a.teacher.localeCompare(b.teacher,'ko'));
-  let h='<div class="info">'+DAYNAMES[d]+'('+md(dayDate(d))+') '+p+'교시 — 지금 비어있는 시간입니다. 이 시간에 진행되는 다른 반 수업을 대신 맡을 수 있습니다.</div>';
+  let h='<div class="info">'+DAYNAMES[d]+'('+md(dayDate(d))+') '+p+'교시 — 지금 '+SWACTOR+' 선생님이 비어있는 시간입니다. 이 시간에 진행되는 다른 반 수업을 대신 맡을 수 있습니다.</div>';
   if(!candidates.length){h+='<p class="muted" style="margin-top:10px">이 시간에 대신 맡을 수 있는(동교과·동교과군) 다른 반 수업이 없습니다.</p>';box.innerHTML=h;return}
   const tierLabel={1:'동교과',2:'동교과군(동교과가 없어 확장)'};
   let cur=null;
@@ -944,20 +975,20 @@ function showVolunteerPanel(d,p){
 function confirmVolunteer(otherTeacher,d,p){
   const c=effectiveCell(otherTeacher,d,p);
   openModal('보강 대신 맡기',
-    '<p class="muted">'+DAYNAMES[d]+' '+p+'교시 <b>'+c.label+'</b> ('+otherTeacher+' 선생님 수업)을 선생님이 대신 맡습니다.</p>'+
+    '<p class="muted">'+DAYNAMES[d]+' '+p+'교시 <b>'+c.label+'</b> ('+otherTeacher+' 선생님 수업)을 '+SWACTOR+' 선생님이 대신 맡습니다.</p>'+
     '<div class="field"><label>결강 날짜</label><input id="mAbs" type="date" value="'+iso(dayDate(d))+'"></div>'+
-    subjPickerField('mCoverSubj','보강 교과 (실제로 무슨 수업을 하시나요? 시수 부족 등으로 다른 과목이면 바꿔주세요)',subjFull(ME,null))+
+    subjPickerField('mCoverSubj','보강 교과 (실제로 무슨 수업을 하시나요? 시수 부족 등으로 다른 과목이면 바꿔주세요)',subjFull(SWACTOR,null))+
     '<div class="field"><label>보강계획 날짜 (되갚는 수업, 없으면 비움)</label><input id="mMk" type="date"></div>'+
     '<div class="field"><label>보강계획 교시</label><input id="mMkP" type="number" min="1" max="7"></div>'+
     reasonFields(),
-    ()=>{Store.add({type:'sub',applicant:otherTeacher,sameDept:sameDept(ME,otherTeacher)||sameCurrGroup(ME,otherTeacher),reason:val('mReason'),writeDate:val('mWrite'),
+    ()=>{Store.add({type:'sub',applicant:otherTeacher,sameDept:sameDept(SWACTOR,otherTeacher)||sameCurrGroup(SWACTOR,otherTeacher),reason:val('mReason'),writeDate:val('mWrite'),
       absent:{date:val('mAbs'),grade:c.grade,cls:c.cls,period:p,subject:subjFull(otherTeacher,c)},
-      cover:{teacher:ME,subject:val('mCoverSubj')},makeup:{date:val('mMk'),period:val('mMkP')}});done()});
+      cover:{teacher:SWACTOR,subject:val('mCoverSubj')},makeup:{date:val('mMk'),period:val('mMkP')}});done()});
 }
 
 function showSubPanel(d,p){
-  const my=effectiveCell(ME,d,p),sc=subCandidates(d,p),box=document.getElementById('swResult');
-  let h='<div class="info">'+DAYNAMES[d]+'('+md(dayDate(d))+') '+p+'교시 · '+my.label+' '+(subjFull(ME,my)||'')+
+  const my=effectiveCell(SWACTOR,d,p),sc=subCandidates(d,p,SWACTOR),box=document.getElementById('swResult');
+  let h='<div class="info">'+DAYNAMES[d]+'('+md(dayDate(d))+') '+p+'교시 · '+my.label+' '+(subjFull(SWACTOR,my)||'')+
     ' — 다른 교시로 옮기려면 <b>빈 칸을 클릭/드래그</b></div>';
   h+='<h3 style="font-size:13px;margin:12px 0 6px">보강 신청 (다른 교사가 대신)</h3>';
   if(sc.same.length){
@@ -976,13 +1007,13 @@ function showSubPanel(d,p){
 function doMove(from,to){
   SWFROM=from;SWTO=to;SWPART=null;
   renderSwap(); // 미리보기에서 돌아왔을 수 있으니 왼쪽 시간표를 평소 모습으로 복원
-  const my=effectiveCell(ME,from.d,from.p),box=document.getElementById('swResult');
-  const res=movePartners(from,to);
+  const my=effectiveCell(SWACTOR,from.d,from.p),box=document.getElementById('swResult');
+  const res=movePartners(from,to,SWACTOR);
   let h='<div class="info"><b>'+DAYNAMES[from.d]+'('+md(dayDate(from.d))+') '+from.p+'교시 '+my.label+'</b>'+
     ' → '+DAYNAMES[to.d]+'('+md(dayDate(to.d))+') '+to.p+'교시로 이동</div>';
   if(res.err){box.innerHTML=h+'<p class="err" style="margin-top:10px">'+res.err+'</p>';return}
   if(!res.options.length){
-    CHAINS=findChains(from,to);CHAINSEL=null;
+    CHAINS=findChains(from,to,SWACTOR);CHAINSEL=null;
     if(!CHAINS.length){box.innerHTML=h+'<p class="err" style="margin-top:10px">불가능 — 직접 교체도, 교사 한 명을 더 거쳐도(연쇄 이동) 자리가 나지 않습니다.</p>';return}
     h+='<p class="muted" style="margin:10px 0 0">직접 맞바꿀 교사는 없지만, <b>교사 한 명을 더 거치면(연쇄 이동)</b> 가능한 조합이 '+CHAINS.length+'개 있습니다.</p>';
     h+=CHAINS.map((c,i)=>'<div class="opt"><span class="lead">'+c.B+'</span><span class="muted">→</span><span class="lead">'+c.C+'</span>'+
@@ -1004,22 +1035,22 @@ function doMove(from,to){
 function pickPartner(name){SWPART=name;renderPreview()}
 function renderPreview(){
   const from=SWFROM,to=SWTO,P=SWPART;
-  const my=effectiveCell(ME,from.d,from.p),pc=effectiveCell(P,to.d,to.p);
+  const my=effectiveCell(SWACTOR,from.d,from.p),pc=effectiveCell(P,to.d,to.p);
   const marks={};marks[to.d+'-'+to.p]={k:'vac'};
   if(isFree(P,from.d,from.p))marks[from.d+'-'+from.p]={k:'fill',cell:{grade:pc.grade,cls:pc.cls,label:pc.label,subj:pc.subj||subjFull(P,pc),elective:false}};
-  // 내 시간표(왼쪽)도 같이 미리보기: 비워지는 자리=노란색, 새로 채워지는 자리=민트색
+  // 왼쪽 시간표도 같이 미리보기: 비워지는 자리=노란색, 새로 채워지는 자리=민트색
   const myMarks={};myMarks[from.d+'-'+from.p]={k:'vac'};
-  myMarks[to.d+'-'+to.p]={k:'fill',cell:{grade:my.grade,cls:my.cls,label:my.label,subj:my.subj||subjFull(ME,my),elective:false}};
-  document.getElementById('swGrid').innerHTML=ttTable(ME,{marks:myMarks});
+  myMarks[to.d+'-'+to.p]={k:'fill',cell:{grade:my.grade,cls:my.cls,label:my.label,subj:my.subj||subjFull(SWACTOR,my),elective:false}};
+  document.getElementById('swGrid').innerHTML=ttTable(SWACTOR,{marks:myMarks});
   let h='<button class="btn sm ghost" onclick="doMove(SWFROM,SWTO)">← 교사 목록</button>';
   h+='<h3 style="font-size:14px;margin:10px 0 6px">상대 교사 시간표 · '+P+'</h3>';
   h+=ttTable(P,{marks});
   h+='<div class="hr"></div><h3 style="font-size:14px;margin-bottom:6px">교체 후 (해당 요일)</h3>';
   const days=from.d===to.d?[from.d]:[from.d,to.d];
   for(const d of days){
-    h+='<table class="cmp"><colgroup><col class="c0"><col><col></colgroup><thead><tr><th>'+DAYNAMES[d]+' ('+md(dayDate(d))+')</th><th>'+ME+'</th><th>'+P+'</th></tr></thead><tbody>';
+    h+='<table class="cmp"><colgroup><col class="c0"><col><col></colgroup><thead><tr><th>'+DAYNAMES[d]+' ('+md(dayDate(d))+')</th><th>'+SWACTOR+'</th><th>'+P+'</th></tr></thead><tbody>';
     for(const p of PERIODS){
-      const mc=effectiveCell(ME,d,p),pcc=effectiveCell(P,d,p);
+      const mc=effectiveCell(SWACTOR,d,p),pcc=effectiveCell(P,d,p);
       let mt=mc?(mc.block?mc.label:mc.label):'',pt=pcc?(pcc.block?pcc.label:pcc.label):'',rc='';
       if(d===from.d&&p===from.p){mt='<s>'+my.label+'</s> → '+DAYNAMES[to.d]+to.p+'교시';pt='＋ '+pc.label+' (이동해 옴)';rc='hlin'}
       if(d===to.d&&p===to.p){mt='＋ '+my.label+' (이동해 옴)';pt='<s>'+pc.label+'</s> → '+DAYNAMES[from.d]+from.p+'교시';rc='hlout'}
@@ -1032,19 +1063,19 @@ function renderPreview(){
 }
 function pickChain(i){CHAINSEL=CHAINS[i];renderChainPreview()}
 function renderChainPreview(){
-  const from=SWFROM,to=SWTO,ch=CHAINSEL,my=effectiveCell(ME,from.d,from.p);
+  const from=SWFROM,to=SWTO,ch=CHAINSEL,my=effectiveCell(SWACTOR,from.d,from.p);
   const markA={};markA[from.d+'-'+from.p]={k:'vac'};
-  markA[to.d+'-'+to.p]={k:'fill',cell:{grade:my.grade,cls:my.cls,label:my.label,subj:my.subj||subjFull(ME,my)}};
+  markA[to.d+'-'+to.p]={k:'fill',cell:{grade:my.grade,cls:my.cls,label:my.label,subj:my.subj||subjFull(SWACTOR,my)}};
   const markB={};markB[to.d+'-'+to.p]={k:'vac'};
   markB[ch.S3.d+'-'+ch.S3.p]={k:'fill',cell:{grade:ch.cB.grade,cls:ch.cB.cls,label:ch.cB.label,subj:ch.cB.subj||subjFull(ch.B,ch.cB)}};
   const markC={};markC[ch.S3.d+'-'+ch.S3.p]={k:'vac'};
   markC[from.d+'-'+from.p]={k:'fill',cell:{grade:ch.cC.grade,cls:ch.cC.cls,label:ch.cC.label,subj:ch.cC.subj||subjFull(ch.C,ch.cC)}};
-  document.getElementById('swGrid').innerHTML=ttTable(ME,{marks:markA});
+  document.getElementById('swGrid').innerHTML=ttTable(SWACTOR,{marks:markA});
   let h='<button class="btn sm ghost" onclick="doMove(SWFROM,SWTO)">← 목록으로</button>';
-  h+='<p class="muted" style="margin:10px 0">'+ME+' → '+ch.B+' → '+ch.C+' → '+ME+' 순서로 3명의 수업이 돌아가며 자리를 바꿉니다.</p>';
+  h+='<p class="muted" style="margin:10px 0">'+SWACTOR+' → '+ch.B+' → '+ch.C+' → '+SWACTOR+' 순서로 3명의 수업이 돌아가며 자리를 바꿉니다.</p>';
   h+='<div class="legend" style="margin-bottom:10px"><span><i style="background:var(--yellow)"></i>이전 수업 (비워짐)</span><span><i style="background:var(--mint)"></i>수정된 수업 (채워짐)</span></div>';
   h+='<div class="chainrow">';
-  h+='<div class="chaincol"><h3>'+ME+' (나)</h3>'+ttTable(ME,{marks:markA})+'</div>';
+  h+='<div class="chaincol"><h3>'+SWACTOR+(SWACTOR===ME?' (나)':'')+'</h3>'+ttTable(SWACTOR,{marks:markA})+'</div>';
   h+='<div class="chaincol"><h3>'+ch.B+'</h3>'+ttTable(ch.B,{marks:markB})+'</div>';
   h+='<div class="chaincol"><h3>'+ch.C+'</h3>'+ttTable(ch.C,{marks:markC})+'</div>';
   h+='</div>';
@@ -1061,31 +1092,31 @@ function val(id){return (document.getElementById(id)||{}).value||''}
 function reasonFields(){return '<div class="field"><label>수업변경 사유</label><input id="mReason" value="개인사정"></div>'+
   '<div class="field"><label>작성일</label><input id="mWrite" type="date" value="'+iso(new Date())+'"></div>'}
 function confirmMove(){
-  const from=SWFROM,to=SWTO,P=SWPART;const my=effectiveCell(ME,from.d,from.p),pc=effectiveCell(P,to.d,to.p);
+  const from=SWFROM,to=SWTO,P=SWPART;const my=effectiveCell(SWACTOR,from.d,from.p),pc=effectiveCell(P,to.d,to.p);
   openModal('수업교체 확정',
-    '<p class="muted">'+DAYNAMES[from.d]+' '+from.p+'교시 <b>'+my.label+'</b> 를 '+DAYNAMES[to.d]+' '+to.p+'교시로 옮기고 '+P+' 선생님과 맞바꿉니다.</p>'+
+    '<p class="muted">'+DAYNAMES[from.d]+' '+from.p+'교시 <b>'+my.label+'</b> ('+SWACTOR+') 를 '+DAYNAMES[to.d]+' '+to.p+'교시로 옮기고 '+P+' 선생님과 맞바꿉니다.</p>'+
     '<div class="field"><label>결강(원래 수업) 날짜</label><input id="mAbs" type="date" value="'+iso(dayDate(from.d))+'"></div>'+
-    '<div class="field"><label>보강계획 — 내가 대신 수업하는 날짜</label><input id="mMk" type="date" value="'+iso(dayDate(to.d))+'"></div>'+
+    '<div class="field"><label>보강계획 — '+SWACTOR+'이(가) 대신 수업하는 날짜</label><input id="mMk" type="date" value="'+iso(dayDate(to.d))+'"></div>'+
     reasonFields(),
-    ()=>{Store.add({type:'swap',applicant:ME,reason:val('mReason'),writeDate:val('mWrite'),
-      absent:{date:val('mAbs'),grade:my.grade,cls:my.cls,period:from.p,subject:subjFull(ME,my)},
+    ()=>{Store.add({type:'swap',applicant:SWACTOR,reason:val('mReason'),writeDate:val('mWrite'),
+      absent:{date:val('mAbs'),grade:my.grade,cls:my.cls,period:from.p,subject:subjFull(SWACTOR,my)},
       cover:{teacher:P,subject:subjFull(P,pc),grade:pc.grade,cls:pc.cls},makeup:{date:val('mMk'),period:to.p}});done()});
 }
 function confirmChain(){
-  const from=SWFROM,to=SWTO,ch=CHAINSEL,my=effectiveCell(ME,from.d,from.p);
+  const from=SWFROM,to=SWTO,ch=CHAINSEL,my=effectiveCell(SWACTOR,from.d,from.p);
   openModal('연쇄 이동 확정 (교사 3명)',
-    '<p class="muted">'+ME+' → '+ch.B+' → '+ch.C+' → '+ME+' 순서로 3명 모두의 수업교체일지가 각자 생성됩니다.</p>'+
+    '<p class="muted">'+SWACTOR+' → '+ch.B+' → '+ch.C+' → '+SWACTOR+' 순서로 3명 모두의 수업교체일지가 각자 생성됩니다.</p>'+
     reasonFields(),
     ()=>{
       const reason=val('mReason'),writeDate=val('mWrite');
       const dA=iso(dayDate(from.d)),dB=iso(dayDate(to.d)),dC=iso(dayDate(ch.S3.d));
-      Store.add({type:'swap',applicant:ME,reason,writeDate,
-        absent:{date:dA,grade:my.grade,cls:my.cls,period:from.p,subject:subjFull(ME,my)},
+      Store.add({type:'swap',applicant:SWACTOR,reason,writeDate,
+        absent:{date:dA,grade:my.grade,cls:my.cls,period:from.p,subject:subjFull(SWACTOR,my)},
         cover:{teacher:ch.C,subject:subjFull(ch.C,ch.cC),grade:ch.cC.grade,cls:ch.cC.cls},
         makeup:{date:dB,period:to.p}});
       Store.add({type:'swap',applicant:ch.B,reason,writeDate,
         absent:{date:dB,grade:ch.cB.grade,cls:ch.cB.cls,period:to.p,subject:subjFull(ch.B,ch.cB)},
-        cover:{teacher:ME,subject:subjFull(ME,my),grade:my.grade,cls:my.cls},
+        cover:{teacher:SWACTOR,subject:subjFull(SWACTOR,my),grade:my.grade,cls:my.cls},
         makeup:{date:dC,period:ch.S3.p}});
       Store.add({type:'swap',applicant:ch.C,reason,writeDate,
         absent:{date:dC,grade:ch.cC.grade,cls:ch.cC.cls,period:ch.S3.p,subject:subjFull(ch.C,ch.cC)},
@@ -1095,16 +1126,16 @@ function confirmChain(){
     });
 }
 function confirmSub(name,same,d,p){
-  const my=effectiveCell(ME,d,p);
+  const my=effectiveCell(SWACTOR,d,p);
   openModal((same?'동교과 ':'')+'보강 확정',
-    '<p class="muted">'+DAYNAMES[d]+' '+p+'교시 <b>'+my.label+'</b> 를 '+name+' 선생님이 보강합니다.</p>'+
+    '<p class="muted">'+DAYNAMES[d]+' '+p+'교시 <b>'+my.label+'</b> ('+SWACTOR+') 를 '+name+' 선생님이 보강합니다.</p>'+
     '<div class="field"><label>결강 날짜</label><input id="mAbs" type="date" value="'+iso(dayDate(d))+'"></div>'+
     subjPickerField('mCoverSubj','보강 교과 (그 선생님이 실제로 무슨 수업을 하시나요? 시수 부족 등으로 다른 과목이면 바꿔주세요)',subjFull(name,null))+
     '<div class="field"><label>보강계획 날짜 (되갚는 수업, 없으면 비움)</label><input id="mMk" type="date"></div>'+
     '<div class="field"><label>보강계획 교시</label><input id="mMkP" type="number" min="1" max="7"></div>'+
     reasonFields(),
-    ()=>{Store.add({type:'sub',applicant:ME,sameDept:same,reason:val('mReason'),writeDate:val('mWrite'),
-      absent:{date:val('mAbs'),grade:my.grade,cls:my.cls,period:p,subject:subjFull(ME,my)},
+    ()=>{Store.add({type:'sub',applicant:SWACTOR,sameDept:same,reason:val('mReason'),writeDate:val('mWrite'),
+      absent:{date:val('mAbs'),grade:my.grade,cls:my.cls,period:p,subject:subjFull(SWACTOR,my)},
       cover:{teacher:name,subject:val('mCoverSubj')},makeup:{date:val('mMk'),period:val('mMkP')}});done()});
 }
 function done(){PICK=DRAG=SWFROM=SWTO=SWPART=CHAINSEL=null;CHAINS=[];renderAll();
