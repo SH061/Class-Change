@@ -941,7 +941,7 @@ function updateSwActorUI(){
 function renderSwap(){
   if(!SWACTOR)SWACTOR=ME;
   updateSwActorUI();
-  document.getElementById('swGrid').innerHTML=ttTable(SWACTOR,{selectable:true,sel:PICK,effective:true});
+  document.getElementById('swGrid').innerHTML=ttTable(SWACTOR,{selectable:true,sel:PICK,effective:true,self:true});
 }
 function dragStart(e,d,p){DRAG={d,p};PICK=null;e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('t','1')}
 function dragOver(e){e.preventDefault();e.currentTarget.classList.add('drop-ok')}
@@ -1143,12 +1143,13 @@ function done(){PICK=DRAG=SWFROM=SWTO=SWPART=CHAINSEL=null;CHAINS=[];renderAll()
 
 /* ===== 확정 목록 ===== */
 function renderChgList(){
-  const mine=Store.all().filter(x=>x.applicant===ME||x.cover.teacher===ME);
+  const who=SWACTOR||ME;
+  const mine=Store.all().filter(x=>x.applicant===who||x.cover.teacher===who);
   document.getElementById('chgCount').textContent=mine.length;
   const el=document.getElementById('chgList');
   if(!mine.length){el.innerHTML='<p class="muted">아직 없습니다.</p>';return}
-  el.innerHTML=mine.map(r=>{const a=r.absent,role=r.applicant===ME?'신청':'보강담당';
-    return '<div class="chgitem">'+(r.applicant===ME?'<button class="x" onclick="delChg(\''+r.id+'\')">✕</button>':'')+
+  el.innerHTML=mine.map(r=>{const a=r.absent,role=r.applicant===who?'신청':'보강담당';
+    return '<div class="chgitem">'+(r.applicant===who?'<button class="x" onclick="delChg(\''+r.id+'\')">✕</button>':'')+
       '<b>'+(a.date?dotShort(dparse(a.date)):'')+'</b> '+a.grade+'-'+a.cls+' '+a.period+'교시 '+a.subject+
       ' — '+(r.type==='swap'?'맞교체 · ':'보강 · ')+r.cover.teacher+' <span class="tag">'+role+'</span></div>';}).join('');
 }
@@ -1287,10 +1288,14 @@ function checkTodayNotice(){
 /* ===== 수업교체일지 (원본 서식, A4 세로) ===== */
 let JILJI_SEL=null;
 function renderJilji(){
-  const mine=Store.all().filter(x=>x.applicant===ME);
+  const who=SWACTOR||ME;
+  const mine=Store.all().filter(x=>x.applicant===who);
   renderJiljiSelector(mine);
   const use=JILJI_SEL?mine.filter(x=>JILJI_SEL.has(x.id)):mine;
-  jiljiInto(document.getElementById('jiljiWrap'),use,mine.length?'선택된 내역이 없습니다. 위에서 인쇄할 건을 선택하세요.':'저장된 수업교체 내역이 없습니다.');
+  const wrap=document.getElementById('jiljiWrap');
+  const hint=who!==ME?'<p class="muted noprint" style="margin-bottom:10px">지금 <b>'+who+'</b> 선생님 기준으로 보고 있습니다 ([수업교체/보강] 탭에서 "다른 교사 시간표 변경"으로 바꿀 수 있습니다).</p>':'';
+  jiljiInto(wrap,use,mine.length?'선택된 내역이 없습니다. 위에서 인쇄할 건을 선택하세요.':'저장된 수업교체 내역이 없습니다.');
+  if(hint)wrap.innerHTML=hint+wrap.innerHTML;
 }
 function renderJiljiSelector(mine){
   const el=document.getElementById('jiljiSelWrap');if(!el)return;
@@ -1305,7 +1310,7 @@ function renderJiljiSelector(mine){
     '<div class="row" style="margin-top:8px"><button class="btn sm ghost" onclick="jiljiSelAll(true)">전체 선택</button><button class="btn sm ghost" onclick="jiljiSelAll(false)">전체 해제</button></div></div>';
 }
 function toggleJiljiSel(id,on){if(on)JILJI_SEL.add(id);else JILJI_SEL.delete(id);renderJilji()}
-function jiljiSelAll(on){const mine=Store.all().filter(x=>x.applicant===ME);JILJI_SEL=on?new Set(mine.map(x=>x.id)):new Set();renderJilji()}
+function jiljiSelAll(on){const who=SWACTOR||ME;const mine=Store.all().filter(x=>x.applicant===who);JILJI_SEL=on?new Set(mine.map(x=>x.id)):new Set();renderJilji()}
 function jiljiInto(wrap,records,emptyMsg){
   if(!records.length){wrap.innerHTML='<p class="muted">'+emptyMsg+'</p>';return}
   const g={};records.forEach(x=>{const k=x.applicant+'||'+x.writeDate+'||'+x.reason;(g[k]=g[k]||[]).push(x)});
