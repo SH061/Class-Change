@@ -556,13 +556,15 @@ function findChains(from,to){
   const my=effectiveCell(ME,from.d,from.p);
   if(!my||my.block||my.elective)return[];
   const myClass=my.grade+'-'+my.cls;
-  if(classTeacherAt(myClass,to.d,to.p,[ME]))return[]; // 그 시간 이미 다른 사람이 내 반 수업 중이면 애초에 불가
   const results=[];
   for(const B of M.teachers){
     if(B.name===ME)continue;
     const cB=effectiveCell(B.name,to.d,to.p);
     if(!cB||cB.block||cB.elective)continue;
     if(isFreeEff(B.name,from.d,from.p))continue; // 직접 교체가 되면 연쇄까지 갈 필요 없음(중복 제외)
+    // 그 시간(to)에 내 반(myClass) 수업이 B 말고 다른 사람과 이미 겹치면 이 B는 후보가 될 수 없음
+    // (버그였던 부분: 예전엔 이 조건을 B를 정하기도 전에 통째로 검사해서 거의 항상 0건이 나왔음)
+    if(classTeacherAt(myClass,to.d,to.p,[ME,B.name]))continue;
     const clsB=cB.grade+'-'+cB.cls;
     for(let d3=0;d3<5;d3++)for(const p3 of PERIODS){
       if(d3===to.d&&p3===to.p)continue;if(d3===from.d&&p3===from.p)continue;
@@ -791,7 +793,12 @@ function allTTBar(){
   h+='</div>';
   return h;
 }
-function pickAllTTClass(c){ALLTT_HILITE=(ALLTT_HILITE===c)?null:c;renderAllTeachersTT('allTTWrap')}
+function pickAllTTClass(c){
+  ALLTT_HILITE=(ALLTT_HILITE===c)?null:c;
+  // 로그인 전 미리보기(allTTWrap)/로그인 후 화면(allTTWrap2) 둘 다 있으면 둘 다 새로고침
+  if(document.getElementById('allTTWrap2'))renderAllTeachersTT('allTTWrap2');
+  if(document.getElementById('allTTWrap'))renderAllTeachersTT('allTTWrap');
+}
 function fullSchoolTable(){
   const d=ALLTT_DAY;
   let h='<table class="tt" style="table-layout:auto">';
