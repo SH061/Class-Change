@@ -498,13 +498,17 @@ const Store={
 
 /* ===== 부트 ===== */
 let ME=null;
+// 학교 공용 기본 연동 주소 — 여기를 채워두면 누가 접속하든(처음 설정 없이) 자동으로 이 시간표를 불러옵니다.
+// 학기가 바뀌어 배포 주소가 바뀌면 이 값만 새 URL로 교체하면 됩니다. (수업계 탭에서 개별적으로 바꾼 경우 그쪽이 우선합니다)
+const DEFAULT_APPS_URL='https://script.google.com/a/macros/ai.jne.kr/s/AKfycby3Fo_AGaI5z4QC_vn7chkIFcZx0zK_iRd5u8RArtPl64ByRE2DdUbO_c5L3rkRf5LV/exec';
 function boot(){
   computeWeeks();
   const c=getCfg();
   if(c.te)document.getElementById('cfgTE').value=c.te;
   if(c.tt)document.getElementById('cfgTT').value=c.tt;
-  if(c.apps&&document.getElementById('cfgApps'))document.getElementById('cfgApps').value=c.apps;
-  if(c.apps){fetchAppsScript(c.apps).then(rows=>{buildModel(rows,c.te);afterLoad()}).catch(showErr)}
+  const appsUrl=c.apps||DEFAULT_APPS_URL;
+  if(appsUrl&&document.getElementById('cfgApps'))document.getElementById('cfgApps').value=appsUrl;
+  if(appsUrl){fetchAppsScript(appsUrl).then(rows=>{buildModel(rows,c.te);afterLoad()}).catch(showErr)}
   else if(c.ttData){buildModel(c.ttData,c.te);afterLoad();}
   else if(c.tt){fetchCSVUrl(c.tt).then(rows=>{buildModel(rows,c.te);afterLoad()}).catch(showErr)}
   else document.getElementById('loginBody').innerHTML='<p class="err">시간표가 연결되지 않았습니다. 아래 “처음 설정”에서 파일을 선택하거나 샘플로 확인하세요.</p>';
@@ -953,9 +957,9 @@ function renderMgr(){
     <h2 class="sechead">전체교사 시간표 연동 (구글시트) <span class="tag" style="background:var(--primary);color:#fff">추천</span></h2>
     <p class="muted">Apps Script를 배포하면 구글시트의 시간표를 실시간으로 불러옵니다. <b>읽기 전용</b>입니다 — 앱에서 교체한 내용이 시트로 올라가지 않고, 시트를 고치면 앱에만 반영됩니다.</p>
     <div class="field" style="margin-top:8px"><label>Apps Script Web App URL</label>
-      <input id="mAppsUrl" placeholder="https://script.google.com/macros/s/…/exec" value="${getCfg().apps||''}" style="width:100%;max-width:520px"></div>
+      <input id="mAppsUrl" placeholder="https://script.google.com/macros/s/…/exec" value="${getCfg().apps||DEFAULT_APPS_URL||''}" style="width:100%;max-width:520px"></div>
     <button class="btn sm" style="margin-top:8px" onclick="mgrSaveAppsUrl()">저장 후 불러오기</button>
-    <p class="muted" style="margin-top:6px">배포 방법은 함께 받은 <code>구글시트_연동_AppsScript.gs</code> 안내를 참고하세요.</p>
+    <p class="muted" style="margin-top:6px">${getCfg().apps?'':'현재 코드에 기본으로 저장된 학교 공용 주소가 표시되어 있습니다. 새 학기 등으로 주소가 바뀌면 여기서 새 URL로 저장하세요.'} 배포 방법은 함께 받은 <code>구글시트_연동_AppsScript.gs</code> 안내를 참고하세요.</p>
   </div>
 
   <div class="sec">
