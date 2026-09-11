@@ -857,16 +857,24 @@ function classScheduleLive(gradeCls){
     if(c&&!c.block&&(c.grade+'-'+c.cls)===gradeCls)cells[d][p]={teacher:t.name,subject:subjFull(t.name,c)};
   }
   for(const r of Store.all()){
-    const a=r.absent;
-    if((a.grade+'-'+a.cls)!==gradeCls)continue;
-    const ad=wd(a.date);
-    if(ad>=0&&iso(dayDate(ad))===a.date){
-      if(r.type==='sub')cells[ad][a.period]={teacher:r.cover.teacher,subject:a.subject,fill:true};
-      else cells[ad][a.period]={empty:true};
+    const a=r.absent,mk=r.makeup,cv=r.cover;
+    const applicantClass=a.grade+'-'+a.cls;
+    const coverClass=(cv&&cv.grade&&cv.cls)?(cv.grade+'-'+cv.cls):null;
+    if(applicantClass===gradeCls){
+      const ad=wd(a.date);
+      if(ad>=0&&iso(dayDate(ad))===a.date){
+        // 보강이든 맞교체든, 이 시간엔 이제 cover 교사가 수업합니다(비는 게 아님)
+        cells[ad][a.period]={teacher:cv.teacher,subject:(cv.subject||a.subject),fill:true};
+      }
+      if(r.type==='swap'&&mk&&mk.date){
+        const mdi=wd(mk.date);
+        if(mdi>=0&&iso(dayDate(mdi))===mk.date)cells[mdi][mk.period]={teacher:r.applicant,subject:a.subject,fill:true};
+      }
     }
-    if(r.type==='swap'&&r.makeup&&r.makeup.date){
-      const mdi=wd(r.makeup.date);
-      if(mdi>=0&&iso(dayDate(mdi))===r.makeup.date)cells[mdi][r.makeup.period]={teacher:r.applicant,subject:a.subject,fill:true};
+    // 맞교체 상대방 자신의 반(신청자 반과 다를 때)은 원래 자리가 비게 됨
+    if(r.type==='swap'&&coverClass&&coverClass!==applicantClass&&coverClass===gradeCls&&mk&&mk.date){
+      const mdi=wd(mk.date);
+      if(mdi>=0&&iso(dayDate(mdi))===mk.date)cells[mdi][mk.period]={empty:true};
     }
   }
   return cells;
