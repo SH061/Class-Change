@@ -620,7 +620,7 @@ table.grid-ed input,table.grid-ed select{width:100%;padding:5px 6px}
       <div class="sheet cal-sheet" style="position:relative">
         <button class="x" onclick="closeCalModal()">✕</button>
         <h2 style="text-align:center" id="calModalTitle">학사일정</h2>
-        <p class="muted" style="margin:0 0 4px;text-align:center">날짜를 보면 제목만 보이고, 제목을 누르면 자세한 내용이 나옵니다. 수업계 담당만 새 일정을 추가할 수 있습니다.</p>
+        <p class="muted" style="margin:0 0 4px;text-align:center">날짜를 보면 제목만 보이고, 제목을 누르면 자세한 내용이 나옵니다. 1학년 담임 선생님만 새 일정을 추가할 수 있습니다.</p>
         <div style="display:flex;align-items:center;justify-content:center;gap:14px;margin:8px 0">
           <button type="button" class="btn sm ghost" onclick="calNav(-1)">‹ 이전달</button>
           <button type="button" class="btn sm ghost" onclick="calNav(1)">다음달 ›</button>
@@ -628,7 +628,7 @@ table.grid-ed input,table.grid-ed select{width:100%;padding:5px 6px}
         <div id="calGrid"></div>
         <div id="calDetail" class="calDetailBox" hidden></div>
         <div class="addForm" id="calAddForm" hidden>
-          <div class="hint">+ 새 학사일정 추가 (수업계 담당 전용)</div>
+          <div class="hint">+ 새 학사일정 추가 (1학년 담임 전용)</div>
           <div style="display:flex;gap:6px">
             <input id="calStart" type="date" style="flex:1">
             <input id="calEnd" type="date" style="flex:1" placeholder="종료일(같으면 비워둠)">
@@ -758,7 +758,7 @@ function isManager(){const m=(getForm().managers||'').split(/[,\s]+/).filter(Boo
 // (여기에 더해 "수업계 담당자" 이름도 등록해두면 그 이름으로 로그인한 사람만 실제로 수정할 수 있습니다)
 function mgrAccessOK(){return new URLSearchParams(location.search).get('mgr')==='1'}
 // 1학년 담임 여부 — [수업계] 탭에서 이름을 등록해두면 그 사람만 "학교 및 학년 안내"에 새 글을 추가할 수 있음
-function isHomeroom(){const m=(getForm().homerooms||'').split(/[,\s]+/).filter(Boolean);return m.includes(ME)}
+function isHomeroom(){const m=(getForm().homerooms||'').split(/[,\s]+/).filter(Boolean);return m.includes(ME)||REMOTE_HOMEROOMS.includes(ME)}
 
 /* ===== CSV ===== */
 function parseCSV(t){const rows=[];let row=[],cur='',q=false;for(let i=0;i<t.length;i++){const c=t[i];
@@ -1126,7 +1126,7 @@ function boot(){
   if(c.tt)document.getElementById('cfgTT').value=c.tt;
   const appsUrl=c.apps||DEFAULT_APPS_URL;
   if(appsUrl&&document.getElementById('cfgApps'))document.getElementById('cfgApps').value=appsUrl;
-  if(appsUrl){fetchAppsScript(appsUrl).then(rows=>{buildModel(rows,c.te);afterLoad()}).catch(showErr)}
+  if(appsUrl){ACTIVE_APPS_URL=appsUrl;fetchAppsScript(appsUrl).then(j=>{buildModel(j.rows,c.te);applyRemoteSync(j);afterLoad()}).catch(showErr)}
   else if(c.ttData){buildModel(c.ttData,c.te);afterLoad();}
   else if(c.tt){fetchCSVUrl(c.tt).then(rows=>{buildModel(rows,c.te);afterLoad()}).catch(showErr)}
   else document.getElementById('loginBody').innerHTML='<p class="err">시간표가 연결되지 않았습니다. 아래 “처음 설정”에서 파일을 선택하거나 샘플로 확인하세요.</p>';
@@ -1134,10 +1134,23 @@ function boot(){
 function getCfg(){try{return JSON.parse(lsGet(LS.cfg))||{}}catch(e){return{}}}
 function setCfg(c){lsSet(LS.cfg,JSON.stringify(c))}
 async function fetchCSVUrl(url){const r=await fetch(url);if(!r.ok)throw new Error('HTTP '+r.status);return parseCSV(await r.text())}
+let ACTIVE_APPS_URL=null,REMOTE_HOMEROOMS=[];
 async function fetchAppsScript(url){
   const r=await fetch(url);if(!r.ok)throw new Error('HTTP '+r.status);
   const j=await r.json();if(j.error)throw new Error(j.error);
-  return j.rows;
+  return j;
+}
+// 앱스크립트에서 받아온 학사일정/안내/담임명단을 이 브라우저의 화면에도 그대로 반영(단방향: 시트→화면).
+// 학사일정·안내는 1학년 담임이 addCal()/addNotice()로 등록하면 시트에 저장되고, 그 결과가 다시 여기로 돌아와 반영됨.
+function applyRemoteSync(j){
+  if(Array.isArray(j.academic))setAcademic(j.academic);
+  if(Array.isArray(j.notices))Notices._s(j.notices);
+  if(Array.isArray(j.homerooms))REMOTE_HOMEROOMS=j.homerooms;
+}
+async function postAppsScript(url,body){
+  const r=await fetch(url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(body)});
+  if(!r.ok)throw new Error('HTTP '+r.status);
+  return r.json();
 }
 function showErr(e){document.getElementById('loginBody').innerHTML='<p class="err">불러오기 실패: '+e.message+'</p>'}
 function afterLoad(){
@@ -1380,29 +1393,46 @@ function renderCalModal(){
   html+='</tbody></table>';
   document.getElementById('calGrid').innerHTML=html;
   document.getElementById('calDetail').hidden=true;
-  document.getElementById('calAddForm').hidden=!isManager();
+  document.getElementById('calAddForm').hidden=!isHomeroom();
 }
 function showCalDetail(i){
   const e=getAcademic()[i];if(!e)return;
   document.getElementById('calDetail').innerHTML=
     '<h4>'+fmtAcRange(e)+' · <span class="tag" style="background:'+AC_CATCOLOR[e.type]+'">'+e.type+'</span> '+(e.title||'')+acGradeBadge(e)+
     (e.noClass?' <span class="muted" style="font-size:11px">· 수업 없음</span>':'')+'</h4>'+
-    (e.body?'<div class="body">'+e.body+'</div>':'<p class="muted" style="margin:4px 0 0">등록된 세부 내용이 없습니다.</p>');
+    (e.body?'<div class="body">'+e.body+'</div>':'<p class="muted" style="margin:4px 0 0">등록된 세부 내용이 없습니다.</p>')+
+    (isHomeroom()?'<button class="btn sm ghost" style="margin-top:8px" onclick="delCalConfirm('+i+')">삭제</button>':'');
   document.getElementById('calDetail').hidden=false;
 }
-function addCal(){
-  if(!isManager())return;
+async function addCal(){
+  if(!isHomeroom())return;
   const date=val('calStart');const end=val('calEnd')||date;
   const title=val('calTitle').trim();
   if(!date){alert('날짜를 선택하세요.');return}
   const grades=[1,2,3].filter(g=>document.getElementById('calG'+g).checked);
-  const a=getAcademic();
-  a.push({date,end,type:val('calCategory'),last:+val('calLast')||undefined,title,grades,
-    noClass:document.getElementById('calNoClass').checked,body:val('calBody').trim()});
-  setAcademic(a);
+  const entry={date,end,type:val('calCategory'),last:+val('calLast')||undefined,title,grades,
+    noClass:document.getElementById('calNoClass').checked,body:val('calBody').trim()};
+  if(ACTIVE_APPS_URL){
+    try{const res=await postAppsScript(ACTIVE_APPS_URL,{action:'addAcademic',entry,editor:ME});
+      if(res.error){alert('저장 실패: '+res.error);return}
+      applyRemoteSync(res);
+    }catch(err){alert('저장 실패: '+err.message);return}
+  }else{const a=getAcademic();a.push(entry);setAcademic(a);}
   document.getElementById('calStart').value='';document.getElementById('calEnd').value='';
   document.getElementById('calLast').value='';document.getElementById('calTitle').value='';document.getElementById('calBody').value='';
   document.getElementById('calNoClass').checked=false;[1,2,3].forEach(g=>document.getElementById('calG'+g).checked=false);
+  renderCalModal();renderCalWeekSummary();renderMgr();
+}
+async function delCalConfirm(i){
+  if(!isHomeroom())return;
+  const e=getAcademic()[i];if(!e)return;
+  if(!confirm('이 학사일정을 삭제할까요?'))return;
+  if(ACTIVE_APPS_URL&&e.id){
+    try{const res=await postAppsScript(ACTIVE_APPS_URL,{action:'deleteAcademic',id:e.id,editor:ME});
+      if(res.error){alert('삭제 실패: '+res.error);return}
+      applyRemoteSync(res);
+    }catch(err){alert('삭제 실패: '+err.message);return}
+  }else{const a=getAcademic();a.splice(i,1);setAcademic(a);}
   renderCalModal();renderCalWeekSummary();renderMgr();
 }
 
@@ -1425,15 +1455,30 @@ function renderNoticeModalList(){
   ).join(''):'<p class="muted">등록된 안내가 없습니다.</p>';
   document.getElementById('noticeAddForm').hidden=!isHomeroom();
 }
-function addNotice(){
+async function addNotice(){
   if(!isHomeroom())return;
   const t=val('newTitle').trim(),b=val('newBody').trim();
   if(!t){alert('제목을 입력하세요.');return}
-  Notices.add({title:t,body:b});
+  if(ACTIVE_APPS_URL){
+    try{const res=await postAppsScript(ACTIVE_APPS_URL,{action:'addNotice',entry:{title:t,body:b},editor:ME});
+      if(res.error){alert('저장 실패: '+res.error);return}
+      applyRemoteSync(res);
+    }catch(err){alert('저장 실패: '+err.message);return}
+  }else{Notices.add({title:t,body:b});}
   document.getElementById('newTitle').value='';document.getElementById('newBody').value='';
   renderNoticeModalList();renderNoticeSummary();
 }
-function delNoticeConfirm(id){if(!isHomeroom())return;if(confirm('이 안내를 삭제할까요?')){Notices.remove(id);renderNoticeModalList();renderNoticeSummary()}}
+async function delNoticeConfirm(id){
+  if(!isHomeroom())return;
+  if(!confirm('이 안내를 삭제할까요?'))return;
+  if(ACTIVE_APPS_URL){
+    try{const res=await postAppsScript(ACTIVE_APPS_URL,{action:'deleteNotice',id,editor:ME});
+      if(res.error){alert('삭제 실패: '+res.error);return}
+      applyRemoteSync(res);
+    }catch(err){alert('삭제 실패: '+err.message);return}
+  }else{Notices.remove(id);}
+  renderNoticeModalList();renderNoticeSummary();
+}
 
 /* --- 수업일수 확인: 자체 달력 팝업으로 날짜 선택 --- */
 let DC_TARGET='start';
@@ -2267,8 +2312,9 @@ function renderMgr(){
 
   <div class="sec">
     <h2 class="sechead">1학년 담임 (선택)</h2>
-    <div class="field"><label>"학교 및 학년 안내"에 새 글을 추가할 수 있는 이름 (쉼표로 여러 명)</label>
+    <div class="field"><label>"학교 및 학년 안내"·"학사일정" 새 글을 추가할 수 있는 이름 (쉼표로 여러 명)</label>
       <input id="fHomeroom" value="${f.homerooms||''}" placeholder="예: 한환수,김서경"></div>
+    <p class="muted" style="margin-top:6px">구글시트로 연동 중이면, 구글시트 "설정" 탭의 담임명단이 여기 값과 합쳐져서 적용됩니다.</p>
   </div>
 
   <div class="row" style="margin-top:20px">
