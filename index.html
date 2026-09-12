@@ -755,9 +755,12 @@ table.grid-ed input,table.grid-ed select{width:100%;padding:5px 6px}
 
     <!-- ===== 교체일지 ===== -->
     <section id="view-jilji" hidden>
-      <div class="jbar noprint">
-        <h2 style="font-size:17px">수업교체일지</h2><span style="flex:1"></span>
-        <button class="btn ghost sm" onclick="printJilji()">인쇄 (A4 세로)</button>
+      <div class="jbar card noprint">
+        <span style="flex:1"></span>
+        <h2 style="font-size:26px;text-align:center;margin:0">수업교체일지</h2>
+        <span style="flex:1;display:flex;justify-content:flex-end">
+          <button class="btn ghost sm" onclick="printJilji()">인쇄 (A4 세로)</button>
+        </span>
       </div>
       <div id="jiljiSelWrap"></div>
       <div id="jiljiWrap"></div>
@@ -1797,7 +1800,15 @@ function renderClassTTGeneric(selId,wrapId){
     h+='</tr>';
   }
   h+='</tbody></table>';
-  const wrap=document.getElementById(wrapId);if(wrap)wrap.innerHTML=h;
+  const wrap=document.getElementById(wrapId);if(wrap){wrap.innerHTML=h;fitClsCellText(wrap)}
+}
+// 모바일에서 칸이 좁아 과목명이 잘리면(말줄임표) 안 보이니, 그 칸 안에 다 들어올 때까지 글자를 조금씩 줄임
+function fitClsCellText(container){
+  if(!window.matchMedia('(max-width:600px)').matches)return;
+  container.querySelectorAll('table.tt.clsTT td .cl').forEach(el=>{
+    let size=parseFloat(getComputedStyle(el).fontSize),guard=0;
+    while(el.scrollWidth>el.clientWidth+0.5&&size>6.5&&guard<12){size-=0.5;el.style.fontSize=size+'px';guard++}
+  });
 }
 function renderClassTT(){renderClassTTGeneric('clsSel','clsTTWrap')}
 function renderClassTT2(){renderClassTTGeneric('clsSel2','clsTTWrap2')}
