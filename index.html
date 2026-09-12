@@ -1228,7 +1228,7 @@ function boot(){
   if(c.tt)document.getElementById('cfgTT').value=c.tt;
   const appsUrl=c.apps||DEFAULT_APPS_URL;
   if(appsUrl&&document.getElementById('cfgApps'))document.getElementById('cfgApps').value=appsUrl;
-  if(appsUrl){ACTIVE_APPS_URL=appsUrl;fetchAppsScript(appsUrl).then(j=>{buildModel(j.rows,c.te);applyRemoteSync(j);afterLoad()}).catch(showErr)}
+  if(appsUrl){ACTIVE_APPS_URL=appsUrl;fetchAppsScript(appsUrl).then(j=>{buildModel(j.rows,j.teachers||c.te);applyRemoteSync(j);afterLoad()}).catch(showErr)}
   else if(c.ttData){buildModel(c.ttData,c.te);afterLoad();}
   else if(c.tt){fetchCSVUrl(c.tt).then(rows=>{buildModel(rows,c.te);afterLoad()}).catch(showErr)}
   else document.getElementById('loginBody').innerHTML='<p class="err">시간표가 연결되지 않았습니다. 아래 “처음 설정”에서 파일을 선택하거나 샘플로 확인하세요.</p>';
