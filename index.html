@@ -76,6 +76,8 @@ table.tt th .pnum{display:block;font-size:16px;font-weight:700;color:var(--ink)}
 table.tt th .ptime{display:block;font-size:12px;font-weight:500;color:#8e8b82;margin-top:2px}
 table.tt col.phead{width:60px}
 table.tt td.slot{height:74px;vertical-align:middle}
+/* 상대/연쇄 교사 미리보기 표는 폭이 좁아 수업시간(09:00~) 글자가 옆 표를 침범하므로 교시 숫자만 표시 */
+#swResult table.tt th .ptime{display:none}
 table.tt td.has{background:#fff;cursor:grab}
 table.tt td.has:active{cursor:grabbing}
 table.tt td.selm.has:hover{outline:2px solid var(--primary);outline-offset:-2px}
@@ -317,7 +319,7 @@ table.grid-ed input,table.grid-ed select{width:100%;padding:5px 6px}
 #modal .card{background:var(--canvas);max-width:560px;width:100%}
 
 /* ============ 수업교체일지 : 원본 서식 (A4 가로) ============ */
-.jilji{background:#fff;color:#000;width:270mm;height:182mm;margin:0 auto;padding:13mm 9mm 0;font-family:"바탕","Batang","HY바탕M",serif;font-weight:400;-webkit-text-stroke:.35px #000;position:relative}
+.jilji{background:#fff;color:#000;width:270mm;height:165mm;margin:0 auto;padding:13mm 9mm 0;font-family:"바탕","Batang","HY바탕M",serif;font-weight:400;-webkit-text-stroke:.35px #000;position:relative}
 .jilji .head{position:relative;height:40mm}
 .jilji .jtitle{font-family:"돋움","Dotum","맑은 고딕","Malgun Gothic",sans-serif;font-size:30pt;font-weight:800;letter-spacing:-1px;-webkit-text-stroke:0;position:absolute;left:0;right:96mm;top:0;height:40mm;display:flex;align-items:center;justify-content:center;text-align:center;white-space:nowrap}
 .jilji table.appr{border-collapse:collapse;position:absolute;right:0;top:0}
@@ -347,7 +349,7 @@ table.grid-ed input,table.grid-ed select{width:100%;padding:5px 6px}
   /* 수업교체일지를 인쇄할 때 상단 제목바/체크박스 목록이 혹시라도 남아 빈 페이지를 만들지 않도록 이중으로 확실히 숨김 */
   body.print-jilji .jbar,body.print-jilji #jiljiSelWrap{display:none!important}
   .jscale{transform:none!important}
-  .jilji{width:270mm;margin:0 auto}
+  .jilji{width:270mm;margin:0 auto;page-break-inside:avoid;page-break-after:avoid}
   .jilji + .jilji{page-break-before:always}
   @page{size:A4 landscape;margin:12mm}
 }
