@@ -428,25 +428,29 @@ table.grid-ed input,table.grid-ed select{width:100%;padding:5px 6px}
   #view-tt .card{padding:8px}
   .ttHeaderRow{padding:8px 10px!important}
   .ttHeaderRow h2{font-size:15px!important}
-  .pbar{font-size:12px;padding:7px 10px}
-  .pbar .btn.sm{padding:5px 9px;font-size:12px}
+  .pbar{font-size:11px;padding:6px 8px;gap:6px;flex-wrap:nowrap}
+  .pbar .btn.sm{padding:5px 7px;font-size:11px}
+  .pbar-daterange{display:none}
+  .pbar select{font-size:11px;padding:4px 4px;max-width:120px}
 
-  #ttWrap table.tt{min-width:480px}
-  #ttWrap table.tt col.phead{width:60px}
-  #ttWrap table.tt th .pnum{font-size:14px}
-  #ttWrap table.tt th .ptime{font-size:9px}
-  #ttWrap table.tt td.slot{height:56px}
-  #ttWrap table.tt td .cl{font-size:16px}
-  #ttWrap table.tt td .sub{font-size:9.5px}
-  #ttWrap table.tt td .elec{font-size:9px}
+  /* 5개 요일이 스크롤 없이 한 화면에 다 들어오도록 표 최소폭 제거하고 칸을 더 줄임 */
+  #ttWrap table.tt{min-width:0}
+  #ttWrap table.tt col.phead{width:42px}
+  #ttWrap table.tt th .pnum{font-size:11px}
+  #ttWrap table.tt th .ptime{font-size:7px;white-space:nowrap;letter-spacing:-.5px}
+  #ttWrap table.tt td.slot{height:50px}
+  #ttWrap table.tt td .cl{font-size:13px}
+  #ttWrap table.tt td .sub{font-size:7.5px}
+  #ttWrap table.tt td .elec{font-size:7px}
 
-  table.tt.clsTT{min-width:480px}
-  table.tt.clsTT col.phead{width:56px}
-  table.tt.clsTT td.slot{height:56px}
-  table.tt.clsTT td .cl{font-size:16px}
-  table.tt.clsTT td .sub{font-size:9.5px}
-  table.tt.clsTT thead th span{font-size:14px!important}
-  table.tt.clsTT tbody th span{font-size:13px!important}
+  table.tt.clsTT{min-width:0}
+  table.tt.clsTT col.phead{width:42px}
+  table.tt.clsTT td.slot{height:50px}
+  table.tt.clsTT td .cl{font-size:13px}
+  table.tt.clsTT td .sub{font-size:7.5px}
+  table.tt.clsTT thead th span{font-size:11px!important}
+  table.tt.clsTT tbody th span{font-size:10px!important}
+  table.tt.clsTT tbody th span:nth-of-type(2){font-size:7px!important;white-space:nowrap!important;letter-spacing:-.5px;display:block}
   #view-clsTT .card:first-child{display:flex;flex-wrap:wrap}
 
   .legend{font-size:10px;gap:6px}
@@ -481,6 +485,7 @@ table.grid-ed input,table.grid-ed select{width:100%;padding:5px 6px}
   .addForm .hint{font-size:10.5px}
 
   .dcTitle{font-size:20px!important;margin-bottom:4px}
+  .dcDateField{font-size:13px!important;padding:6px 10px!important;gap:4px}
   .dcIntro{font-size:9.5px!important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:8px!important}
   .dcBreak{display:block;flex-basis:100%;height:0}
   #daysModal .btn.sm.dcCalcBtn{font-size:13px!important;padding:7px 16px!important;margin-top:4px}
@@ -1272,9 +1277,9 @@ function resetSwapPick(){
 function renderPbar(){
   const w=WEEKS[SELWEEK];const fri=new Date(w.mon);fri.setDate(fri.getDate()+4);
   const h=`<div class="pbar noprint">
-    <button class="btn ghost sm" onclick="navWeek(-1)" ${SELWEEK<=0?'disabled':''}>◀ 지난주</button>
-    <b>${w.mon.getFullYear()}. ${md(w.mon)} ~ ${md(fri)}</b>
-    <button class="btn ghost sm" onclick="navWeek(1)" ${SELWEEK>=WEEKS.length-1?'disabled':''}>다음주 ▶</button>
+    <button class="btn ghost sm" onclick="navWeek(-1)" ${SELWEEK<=0?'disabled':''}>◀ <span class="pbar-btnlabel">지난주</span></button>
+    <b class="pbar-daterange">${w.mon.getFullYear()}. ${md(w.mon)} ~ ${md(fri)}</b>
+    <button class="btn ghost sm" onclick="navWeek(1)" ${SELWEEK>=WEEKS.length-1?'disabled':''}><span class="pbar-btnlabel">다음주</span> ▶</button>
     <select onchange="SELWEEK=+this.value;renderAll()">${WEEKS.map((x,i)=>{
       const f=new Date(x.mon);f.setDate(f.getDate()+4);
       return `<option value="${i}" ${i===SELWEEK?'selected':''}>${md(x.mon)}~${md(f)}${i===0?' (이번주)':''}</option>`}).join('')}</select>
