@@ -827,7 +827,7 @@ table.grid-ed input,table.grid-ed select{width:100%;padding:5px 6px}
   <h3 id="mTitle" style="font-size:17px;margin-bottom:12px"></h3>
   <div id="mBody" style="display:flex;flex-direction:column;gap:11px"></div>
   <div class="row" style="margin-top:16px;justify-content:flex-end">
-    <button class="btn ghost sm" onclick="closeModal()">취소</button>
+    <button class="btn ghost sm" id="mCancelBtn" onclick="closeModal()">취소</button>
     <button class="btn sm" id="mOk">확정</button>
   </div>
 </div></div>
@@ -1600,7 +1600,7 @@ async function addCal(){
   if(!isHomeroom())return;
   const date=val('calStart');const end=val('calEnd')||date;
   const title=val('calTitle').trim();
-  if(!date){alert('날짜를 선택하세요.');return}
+  if(!date){appAlert('날짜를 선택하세요.');return}
   const grades=[1,2,3].filter(g=>document.getElementById('calG'+g).checked);
   const periods=val('calPeriods').split(',').map(x=>+x.trim()).filter(Boolean);
   const entry={date,end,type:val('calCategory'),last:+val('calLast')||undefined,title,grades,periods,
@@ -1619,23 +1619,23 @@ async function addCal(){
   renderCalModal();renderCalWeekSummary();renderMgr();
   if(ACTIVE_APPS_URL){
     try{const res=await postAppsScript(ACTIVE_APPS_URL,editing?{action:'updateAcademic',id:editId,entry,editor:ME}:{action:'addAcademic',entry,editor:ME});
-      if(res.error){alert('저장 실패(방금 입력한 내용은 되돌립니다): '+res.error);setAcademic(before);renderCalModal();renderCalWeekSummary();renderMgr();return}
+      if(res.error){appAlert('저장 실패(방금 입력한 내용은 되돌립니다): '+res.error);setAcademic(before);renderCalModal();renderCalWeekSummary();renderMgr();return}
       applyRemoteSync(res);renderCalModal();renderCalWeekSummary();renderMgr();
-    }catch(err){alert('저장 실패했지만 이 화면에는 남겨둡니다(새로고침하면 사라질 수 있음): '+err.message);}
+    }catch(err){appAlert('저장 실패했지만 이 화면에는 남겨둡니다(새로고침하면 사라질 수 있음): '+err.message);}
   }
 }
 async function delCalConfirm(i){
   if(!isHomeroom())return;
   const e=getAcademic()[i];if(!e)return;
-  if(!confirm('이 학사일정을 삭제할까요?'))return;
+  if(!(await appConfirm('이 학사일정을 삭제할까요?')))return;
   const before=getAcademic();
   const a=getAcademic();a.splice(i,1);setAcademic(a);
   renderCalModal();renderCalWeekSummary();renderMgr();
   if(ACTIVE_APPS_URL&&e.id){
     try{const res=await postAppsScript(ACTIVE_APPS_URL,{action:'deleteAcademic',id:e.id,editor:ME});
-      if(res.error){alert('삭제 실패(되돌립니다): '+res.error);setAcademic(before);renderCalModal();renderCalWeekSummary();renderMgr();return}
+      if(res.error){appAlert('삭제 실패(되돌립니다): '+res.error);setAcademic(before);renderCalModal();renderCalWeekSummary();renderMgr();return}
       applyRemoteSync(res);renderCalModal();renderCalWeekSummary();renderMgr();
-    }catch(err){alert('삭제 실패했지만 이 화면에서는 지운 채로 둡니다(새로고침하면 되살아날 수 있음): '+err.message);}
+    }catch(err){appAlert('삭제 실패했지만 이 화면에서는 지운 채로 둡니다(새로고침하면 되살아날 수 있음): '+err.message);}
   }
 }
 
@@ -1706,7 +1706,7 @@ function cancelNoticeEdit(){
 async function addNotice(){
   if(!isHomeroom())return;
   const t=val('newTitle').trim(),b=val('newBody').trim(),dept=NOTICE_CAT==='school'?val('newDept').trim():'';
-  if(!t){alert('제목을 입력하세요.');return}
+  if(!t){appAlert('제목을 입력하세요.');return}
   const editing=!!NOTICE_EDIT_ID,editId=NOTICE_EDIT_ID;
   const entry={title:t,body:b,category:NOTICE_CAT,dept};
   const before=Notices.all(); // 실패 시 되돌리기용 스냅샷
@@ -1719,23 +1719,23 @@ async function addNotice(){
   renderNoticeModalList();renderNoticeSummary();
   if(ACTIVE_APPS_URL){
     try{const res=await postAppsScript(ACTIVE_APPS_URL,editing?{action:'updateNotice',id:editId,entry,editor:ME}:{action:'addNotice',entry,editor:ME});
-      if(res.error){alert('저장 실패(방금 입력한 내용은 되돌립니다): '+res.error);Notices._s(before);renderNoticeModalList();renderNoticeSummary();return}
+      if(res.error){appAlert('저장 실패(방금 입력한 내용은 되돌립니다): '+res.error);Notices._s(before);renderNoticeModalList();renderNoticeSummary();return}
       applyRemoteSync(res);
-    }catch(err){alert('저장 실패했지만 이 화면에는 남겨둡니다(새로고침하면 사라질 수 있음): '+err.message);return}
+    }catch(err){appAlert('저장 실패했지만 이 화면에는 남겨둡니다(새로고침하면 사라질 수 있음): '+err.message);return}
   }
   renderNoticeModalList();renderNoticeSummary();
 }
 async function delNoticeConfirm(id){
   if(!isHomeroom())return;
-  if(!confirm('이 안내를 삭제할까요?'))return;
+  if(!(await appConfirm('이 안내를 삭제할까요?')))return;
   const before=Notices.all();
   Notices.remove(id);
   renderNoticeModalList();renderNoticeSummary();
   if(ACTIVE_APPS_URL){
     try{const res=await postAppsScript(ACTIVE_APPS_URL,{action:'deleteNotice',id,editor:ME});
-      if(res.error){alert('삭제 실패(되돌립니다): '+res.error);Notices._s(before);renderNoticeModalList();renderNoticeSummary();return}
+      if(res.error){appAlert('삭제 실패(되돌립니다): '+res.error);Notices._s(before);renderNoticeModalList();renderNoticeSummary();return}
       applyRemoteSync(res);renderNoticeModalList();renderNoticeSummary();
-    }catch(err){alert('삭제 실패했지만 이 화면에서는 지운 채로 둡니다(새로고침하면 되살아날 수 있음): '+err.message);}
+    }catch(err){appAlert('삭제 실패했지만 이 화면에서는 지운 채로 둡니다(새로고침하면 되살아날 수 있음): '+err.message);}
   }
 }
 // 완료 체크박스 — 삭제가 아니라 상태만 바꿔서, 나중에도 "완료사항" 탭에서 확인할 수 있게 함.
@@ -1747,7 +1747,7 @@ async function toggleNoticeDone(id,done){
   renderNoticeModalList();renderNoticeSummary();
   if(ACTIVE_APPS_URL){
     try{const res=await postAppsScript(ACTIVE_APPS_URL,{action:'updateNotice',id,entry:{done},editor:ME});
-      if(res.error){alert('저장 실패(되돌립니다): '+res.error);Notices._s(before);renderNoticeModalList();renderNoticeSummary();return}
+      if(res.error){appAlert('저장 실패(되돌립니다): '+res.error);Notices._s(before);renderNoticeModalList();renderNoticeSummary();return}
       applyRemoteSync(res);renderNoticeModalList();renderNoticeSummary();
     }catch(err){/* 오프라인 등 — 이 화면엔 이미 반영돼 있으니 그대로 둠 */}
   }
@@ -2135,8 +2135,36 @@ function renderChain2Preview(){
 /* ===== 확정 ===== */
 function openModal(title,body,onOk){document.getElementById('mTitle').textContent=title;
   document.getElementById('mBody').innerHTML=body;document.getElementById('modal').hidden=false;
+  document.getElementById('mOk').textContent='확정';document.getElementById('mCancelBtn').hidden=false;
   document.getElementById('mOk').onclick=()=>{if(onOk()!==false)closeModal()}}
-function closeModal(){document.getElementById('modal').hidden=true}
+let _confirmResolve=null;
+function closeModal(){document.getElementById('modal').hidden=true;
+  if(_confirmResolve){const r=_confirmResolve;_confirmResolve=null;r(false)}}
+// 브라우저 기본 confirm()/alert() 대신, 화면 디자인에 맞춘 같은 모달로 통일해서 씀.
+// appConfirm은 "확인"을 누르면 true, "취소"나 바깥을 누르면 false로 풀리는 프로미스를 돌려줌.
+function appConfirm(msg,title){
+  document.getElementById('mTitle').textContent=title||'확인해주세요';
+  document.getElementById('mBody').innerHTML='<p class="muted" style="margin:0;line-height:1.6;white-space:pre-line">'+msg+'</p>';
+  document.getElementById('mCancelBtn').hidden=false;
+  document.getElementById('mOk').textContent='확인';
+  document.getElementById('modal').hidden=false;
+  return new Promise(resolve=>{
+    _confirmResolve=resolve;
+    document.getElementById('mOk').onclick=()=>{_confirmResolve=null;document.getElementById('modal').hidden=true;resolve(true)};
+  });
+}
+// appAlert는 "확인" 버튼 하나만 있는 안내창(취소 버튼 숨김) — 닫히면 프로미스가 풀림.
+function appAlert(msg,title){
+  document.getElementById('mTitle').textContent=title||'안내';
+  document.getElementById('mBody').innerHTML='<p class="muted" style="margin:0;line-height:1.6;white-space:pre-line">'+msg+'</p>';
+  document.getElementById('mCancelBtn').hidden=true;
+  document.getElementById('mOk').textContent='확인';
+  document.getElementById('modal').hidden=false;
+  return new Promise(resolve=>{
+    _confirmResolve=null;
+    document.getElementById('mOk').onclick=()=>{document.getElementById('modal').hidden=true;resolve()};
+  });
+}
 function val(id){return (document.getElementById(id)||{}).value||''}
 function reasonFields(){return '<div class="field"><label>수업변경 사유</label><input id="mReason" value="개인사정"></div>'+
   '<div class="field"><label>작성일</label><input id="mWrite" type="date" value="'+iso(new Date())+'"></div>'}
@@ -2281,8 +2309,8 @@ function openGroupDetail(grp){
   document.getElementById('groupDetailModal').classList.add('on');
 }
 function closeGroupDetail(){document.getElementById('groupDetailModal').classList.remove('on')}
-function delChg(id){
-  if(!confirm('이 변경을 취소하시겠습니까? 관련된 다른 선생님의 기록도 함께 삭제되어 시간표가 원래대로 돌아갑니다.'))return;
+async function delChg(id){
+  if(!(await appConfirm('이 변경을 취소하시겠습니까? 관련된 다른 선생님의 기록도 함께 삭제되어 시간표가 원래대로 돌아갑니다.')))return;
   Store.removeGroup(id);renderAll();
 }
 
@@ -2348,8 +2376,8 @@ function renderChgDetail(r){
   h+='<div class="hr"></div><p class="muted">사유: '+(r.reason||'-')+' · 작성일 '+(r.writeDate?dotShort(dparse(r.writeDate)):'-')+'</p>';
   el.innerHTML=h;
 }
-function cancelChg(id){
-  if(!confirm('이 변경을 취소하시겠습니까? 관련된 다른 선생님의 기록도 함께 삭제되어 시간표 표시와 수업교체일지에서 원래대로 되돌아갑니다.'))return;
+async function cancelChg(id){
+  if(!(await appConfirm('이 변경을 취소하시겠습니까? 관련된 다른 선생님의 기록도 함께 삭제되어 시간표 표시와 수업교체일지에서 원래대로 되돌아갑니다.')))return;
   Store.removeGroup(id);CHGSEL=null;renderAll();
 }
 
@@ -2660,8 +2688,8 @@ function renderMgrAll(){
       '<b>'+(a.date?dotShort(dparse(a.date)):'')+'</b> '+r.applicant+' — '+a.grade+'-'+a.cls+' '+a.period+'교시 '+a.subject+
       ' ('+(r.type==='swap'?'맞교체':'보강')+' · '+r.cover.teacher+')</div>';}).join('');
 }
-function mgrDel(id){
-  if(!confirm('이 변경을 삭제하시겠습니까? 관련된 다른 선생님의 기록도 함께 삭제됩니다.'))return;
+async function mgrDel(id){
+  if(!(await appConfirm('이 변경을 삭제하시겠습니까? 관련된 다른 선생님의 기록도 함께 삭제됩니다.')))return;
   Store.removeGroup(id);renderAll();
 }
 function mgrSaveData(){
@@ -2678,12 +2706,12 @@ function mgrSaveData(){
 }
 function mgrSaveAppsUrl(){
   const url=val('mAppsUrl').trim();const te=getCfg().te||'';
-  if(!url){alert('Apps Script Web App URL을 입력하세요.');return}
+  if(!url){appAlert('Apps Script Web App URL을 입력하세요.');return}
   setCfg({apps:url,te,tt:'',ttData:null});location.reload();
 }
 function mgrConvertForSheet(){
   const fl=document.getElementById('mConvFile').files[0];
-  if(!fl){alert('파일을 선택하세요.');return}
+  if(!fl){appAlert('파일을 선택하세요.');return}
   const rd=new FileReader();
   rd.onload=()=>{let rows;
     if(/\.csv$/i.test(fl.name))rows=parseCSV(rd.result);
@@ -2696,8 +2724,8 @@ function mgrConvertForSheet(){
 }
 function mgrConvertCopy(){
   const ta=document.getElementById('mConvOut');ta.hidden=false;ta.select();
-  try{document.execCommand('copy');alert('복사되었습니다. 구글시트에 붙여넣기(Ctrl+V) 하세요.')}
-  catch(e){alert('복사에 실패했습니다. 아래 칸에서 직접 선택해 복사해주세요.')}
+  try{document.execCommand('copy');appAlert('복사되었습니다. 구글시트에 붙여넣기(Ctrl+V) 하세요.')}
+  catch(e){appAlert('복사에 실패했습니다. 아래 칸에서 직접 선택해 복사해주세요.')}
 }
 function mgrSaveForm(){
   const f=getForm();
@@ -2706,7 +2734,7 @@ function mgrSaveForm(){
   f.weeks=Math.max(2,+val('mWeeks')||10);f.managers=val('fMgr').trim();f.homerooms=val('fHomeroom').trim();
   const times={};PERIODS.forEach(p=>times[p]=val('mT'+p));f.times=times;
   setForm(f);setAcademic(AC.filter(x=>x.date));
-  computeWeeks();renderAll();updatePubTitle();renderBrand();alert('저장되었습니다.');
+  computeWeeks();renderAll();updatePubTitle();renderBrand();appAlert('저장되었습니다.');
 }
 
 /* ===== 인쇄 ===== */
