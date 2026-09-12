@@ -288,6 +288,8 @@ table.cmp s{color:var(--muted-soft)}
 .chgitem .x{float:right;cursor:pointer;color:var(--muted);border:0;background:none;font-size:14px}
 
 /* 수업교체/보강 화면 — 내 시간표 탭과 동일한 크기로 통일 (pbar는 건드리지 않음) */
+/* 표 칸의 실제 글자크기·높이는 이미 [내 시간표]와 같지만, 왼쪽 표 영역이 반쪽으로 나뉘어 좁아 보였던 것을 [내 시간표]처럼 넓게 */
+#view-swap .split{grid-template-columns:minmax(0,1fr) 340px}
 #view-swap #swActorLabel{font-size:25px!important}
 #view-swap .panel label{font-size:16px!important}
 #view-swap select#swActorSel{font-size:16px;width:182px;padding:8px 10px}
