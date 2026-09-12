@@ -341,6 +341,88 @@ table.grid-ed input,table.grid-ed select{width:100%;padding:5px 6px}
   .jilji + .jilji{page-break-before:always}
   @page{size:A4 landscape;margin:12mm}
 }
+
+/* ================================================================
+   모바일 / 태블릿 전용 최적화
+   — 아래 규칙은 max-width 화면에서만 적용되므로 PC 화면(그 이상 너비)에는
+     전혀 영향을 주지 않습니다. PC 쪽 스타일은 위쪽 규칙 그대로 유지됩니다.
+   ================================================================ */
+@media (max-width:1024px){
+  /* 밖에서 볼 일이 적은 탭은 숨기고, 내 시간표 / 반별 시간표만 노출 */
+  nav.tabs button[data-v="swap"],
+  nav.tabs button[data-v="jilji"],
+  nav.tabs button[data-v="allTT"]{display:none}
+
+  .wrap{padding:0 14px}
+  header.top .wrap{padding:12px 14px;gap:10px}
+  header.top .brand{font-size:14px}
+  header.top .who{font-size:12px;gap:8px}
+  nav.tabs .wrap{padding:0 14px;gap:2px}
+  nav.tabs button{padding:13px 16px;font-size:15px}
+  main{padding:16px 0 50px}
+
+  /* 내 시간표: 오른쪽 사이드카드(이번 주 변경된 수업/학사일정/학교 안내)를 아래로 스택 */
+  .wide-split{grid-template-columns:1fr;gap:14px}
+  .split{grid-template-columns:1fr}
+
+  /* 시간표는 가로 스크롤로 보되, 칸 자체는 화면에 맞게 줄임 */
+  #ttWrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  #ttWrap table.tt{min-width:560px}
+  #ttWrap table.tt col.phead{width:78px}
+  #ttWrap table.tt th .pnum{font-size:16px}
+  #ttWrap table.tt th .ptime{font-size:10.5px}
+  #ttWrap table.tt td.slot{height:64px}
+  #ttWrap table.tt td .cl{font-size:19px}
+  #ttWrap table.tt td .sub{font-size:11px}
+  #ttWrap table.tt td .elec{font-size:10.5px}
+
+  /* 반별 시간표도 같은 방식으로 축소 */
+  #clsTTWrap2,#clsTTWrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  table.tt.clsTT{min-width:560px}
+  table.tt.clsTT col.phead{width:70px}
+  table.tt.clsTT td.slot{height:64px}
+  table.tt.clsTT td .cl{font-size:19px}
+  table.tt.clsTT td .sub{font-size:11px}
+  #view-clsTT .card h2{font-size:20px!important}
+  #view-clsTT label{font-size:14px!important}
+  #view-clsTT select{font-size:15px!important;width:130px!important}
+  #view-tt .card h2{font-size:20px!important}
+
+  .sidecard{padding:14px}
+  .sidecard h3{font-size:15px}
+  .sidecard h3 .more{font-size:13px}
+}
+
+@media (max-width:600px){
+  header.top .wrap{flex-wrap:wrap}
+  header.top .who{margin-left:0}
+  nav.tabs button{padding:12px 14px;font-size:14px}
+
+  .card{padding:14px}
+  #view-tt .card h2{font-size:18px!important}
+  #view-clsTT .card h2{font-size:18px!important}
+
+  #ttWrap table.tt{min-width:480px}
+  #ttWrap table.tt col.phead{width:60px}
+  #ttWrap table.tt th .pnum{font-size:14px}
+  #ttWrap table.tt th .ptime{font-size:9px}
+  #ttWrap table.tt td.slot{height:56px}
+  #ttWrap table.tt td .cl{font-size:16px}
+  #ttWrap table.tt td .sub{font-size:9.5px}
+  #ttWrap table.tt td .elec{font-size:9px}
+
+  table.tt.clsTT{min-width:480px}
+  table.tt.clsTT col.phead{width:56px}
+  table.tt.clsTT td.slot{height:56px}
+  table.tt.clsTT td .cl{font-size:16px}
+  table.tt.clsTT td .sub{font-size:9.5px}
+  table.tt.clsTT thead th span{font-size:14px!important}
+  table.tt.clsTT tbody th span{font-size:13px!important}
+  #view-clsTT .card{display:flex;flex-wrap:wrap}
+
+  .legend{font-size:11px;gap:8px}
+  .legend i{width:10px;height:10px}
+}
 </style>
 </head>
 <body>
