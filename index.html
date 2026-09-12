@@ -45,6 +45,8 @@ nav.tabs .wrap{display:flex;align-items:center;gap:4px;padding:0 28px}
 nav.tabs button{background:transparent;border:0;padding:16px 20px;font-size:17px;font-weight:700;color:var(--muted);cursor:pointer;border-bottom:3px solid transparent;white-space:nowrap}
 nav.tabs button.on{color:var(--ink);border-bottom-color:var(--primary)}
 nav.tabs button.mgr{color:var(--primary)}
+.mobileMoreBtn{display:none}
+.mobileMoreMenu{display:none}
 main{padding:24px 0 90px}
 .card{background:var(--card);border-radius:var(--r-lg);padding:22px}
 .card + .card{margin-top:16px}
@@ -348,22 +350,41 @@ table.grid-ed input,table.grid-ed select{width:100%;padding:5px 6px}
      전혀 영향을 주지 않습니다. PC 쪽 스타일은 위쪽 규칙 그대로 유지됩니다.
    ================================================================ */
 @media (max-width:1024px){
-  /* 밖에서 볼 일이 적은 탭은 숨기고, 내 시간표 / 반별 시간표만 노출 */
+  /* 밖에서 볼 일이 적은 탭은 숨기고, 내 시간표 / 반별 시간표만 노출 + "더보기" 메뉴로 나머지 접근 */
   nav.tabs button[data-v="swap"],
   nav.tabs button[data-v="jilji"],
   nav.tabs button[data-v="allTT"]{display:none}
+  .mobileMoreBtn{display:inline-block!important;padding:13px 14px;font-size:15px}
+  .mobileMoreMenu{position:absolute;left:14px;right:14px;top:100%;background:var(--card);border:1px solid var(--hairline);border-radius:var(--r-md);box-shadow:0 10px 28px rgba(20,20,19,.18);z-index:60;overflow:hidden}
+  .mobileMoreMenu.on{display:flex;flex-direction:column}
+  .mobileMoreMenu button{background:none;border:0;border-bottom:1px solid var(--hairline);text-align:left;padding:14px 16px;font-size:15px;font-weight:600;color:var(--ink);cursor:pointer}
+  .mobileMoreMenu button:last-child{border-bottom:0}
+  nav.tabs{position:relative}
 
   .wrap{padding:0 14px}
-  header.top .wrap{padding:12px 14px;gap:10px}
-  header.top .brand{font-size:14px}
-  header.top .who{font-size:12px;gap:8px}
+  header.top .wrap{padding:10px 14px;gap:10px}
+  header.top .brand{font-size:13px}
+  header.top .who{font-size:11px;gap:6px}
+  header.top .who .btn{padding:6px 10px;font-size:11px}
   nav.tabs .wrap{padding:0 14px;gap:2px}
-  nav.tabs button{padding:13px 16px;font-size:15px}
-  main{padding:16px 0 50px}
+  nav.tabs button{padding:11px 14px;font-size:14px}
+  main{padding:10px 0 20px}
 
-  /* 내 시간표: 오른쪽 사이드카드(이번 주 변경된 수업/학사일정/학교 안내)를 아래로 스택 */
-  .wide-split{grid-template-columns:1fr;gap:14px}
+  /* 내 시간표: 표 하나만 한 화면에 꽉 차게 — 사이드카드/배너/보조 버튼은 "더보기"로 이동 */
+  .wide-split{grid-template-columns:1fr;gap:0}
   .split{grid-template-columns:1fr}
+  #view-tt .ttSidebar{display:none}
+  #ttBanner{display:none}
+  .pbar{padding:8px 12px;gap:8px;font-size:13px;margin-bottom:8px}
+  .pbar .pbar-hint{display:none}
+  .pbar .pbar-daysbtn{display:none}
+  .pbar .btn.sm{padding:6px 10px;font-size:13px}
+  .ttHeaderRow{padding:10px 14px!important;margin-bottom:8px!important}
+  .ttHeaderRow h2{font-size:16px!important}
+  .ttHeaderRow .ttExtraBtn{display:none}
+  #view-tt .card{padding:10px}
+  .legend{font-size:10px;gap:6px;margin-top:8px}
+  .legend i{width:9px;height:9px}
 
   /* 시간표는 가로 스크롤로 보되, 칸 자체는 화면에 맞게 줄임 */
   #ttWrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
@@ -376,31 +397,34 @@ table.grid-ed input,table.grid-ed select{width:100%;padding:5px 6px}
   #ttWrap table.tt td .sub{font-size:11px}
   #ttWrap table.tt td .elec{font-size:10.5px}
 
-  /* 반별 시간표도 같은 방식으로 축소 */
+  /* 반별 시간표: 선택창 하나 + 표만, 한 화면에 꽉 차게 */
   #clsTTWrap2,#clsTTWrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
   table.tt.clsTT{min-width:560px}
   table.tt.clsTT col.phead{width:70px}
   table.tt.clsTT td.slot{height:64px}
   table.tt.clsTT td .cl{font-size:19px}
   table.tt.clsTT td .sub{font-size:11px}
-  #view-clsTT .card h2{font-size:20px!important}
-  #view-clsTT label{font-size:14px!important}
-  #view-clsTT select{font-size:15px!important;width:130px!important}
-  #view-tt .card h2{font-size:20px!important}
+  #view-clsTT .card:first-child{padding:10px 14px;margin-bottom:8px}
+  #view-clsTT .card h2{font-size:16px!important}
+  #view-clsTT label{font-size:13px!important}
+  #view-clsTT select{font-size:14px!important;width:120px!important;padding:6px 8px!important}
 
-  .sidecard{padding:14px}
-  .sidecard h3{font-size:15px}
-  .sidecard h3 .more{font-size:13px}
+  /* "더보기"로 열리는 모달들도 화면에 맞게 여백 축소 */
+  .noticeModal .sheet{padding:20px 16px}
 }
 
 @media (max-width:600px){
-  header.top .wrap{flex-wrap:wrap}
-  header.top .who{margin-left:0}
-  nav.tabs button{padding:12px 14px;font-size:14px}
+  header.top .wrap{flex-wrap:nowrap}
+  header.top .brand{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:150px}
+  header.top .who{margin-left:auto}
+  nav.tabs button{padding:10px 12px;font-size:13px}
+  .mobileMoreBtn{padding:10px 12px;font-size:13px}
 
-  .card{padding:14px}
-  #view-tt .card h2{font-size:18px!important}
-  #view-clsTT .card h2{font-size:18px!important}
+  #view-tt .card{padding:8px}
+  .ttHeaderRow{padding:8px 10px!important}
+  .ttHeaderRow h2{font-size:15px!important}
+  .pbar{font-size:12px;padding:7px 10px}
+  .pbar .btn.sm{padding:5px 9px;font-size:12px}
 
   #ttWrap table.tt{min-width:480px}
   #ttWrap table.tt col.phead{width:60px}
@@ -418,10 +442,10 @@ table.grid-ed input,table.grid-ed select{width:100%;padding:5px 6px}
   table.tt.clsTT td .sub{font-size:9.5px}
   table.tt.clsTT thead th span{font-size:14px!important}
   table.tt.clsTT tbody th span{font-size:13px!important}
-  #view-clsTT .card{display:flex;flex-wrap:wrap}
+  #view-clsTT .card:first-child{display:flex;flex-wrap:wrap}
 
-  .legend{font-size:11px;gap:8px}
-  .legend i{width:10px;height:10px}
+  .legend{font-size:10px;gap:6px}
+  .legend i{width:8px;height:8px}
 }
 </style>
 </head>
@@ -473,9 +497,17 @@ table.grid-ed input,table.grid-ed select{width:100%;padding:5px 6px}
     <button data-v="jilji" onclick="showView('jilji')">수업교체일지</button>
     <button data-v="allTT" onclick="showView('allTT')">전체 시간표</button>
     <button data-v="clsTT" onclick="showView('clsTT')">반별 시간표</button>
+    <button class="mobileMoreBtn" onclick="toggleMobileMore()">더보기 ▾</button>
     <span style="flex:1"></span>
     <button data-v="mgr" class="mgr" id="navMgrBtn" onclick="showView('mgr')">수업계</button>
-  </div></nav>
+  </div>
+  <div class="mobileMoreMenu" id="mobileMoreMenu">
+    <button onclick="mobileMoreOpen('chg')">📋 이번 주 변경된 수업</button>
+    <button onclick="mobileMoreOpen('cal')">📅 학사일정</button>
+    <button onclick="mobileMoreOpen('notice')">📢 학교 및 학년 안내</button>
+    <button onclick="mobileMoreOpen('days')">📊 수업일수 확인</button>
+  </div>
+  </nav>
   <main class="wrap">
 
     <!-- ===== 수업계 ===== -->
@@ -490,10 +522,10 @@ table.grid-ed input,table.grid-ed select{width:100%;padding:5px 6px}
 
       <div class="wide-split">
         <div>
-          <div class="card noprint" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px">
+          <div class="card noprint ttHeaderRow" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px">
             <h2 style="font-size:25px"><span id="ttWho"></span> 선생님 시간표</h2><span style="flex:1"></span>
-            <button class="btn ghost sm" onclick="openChgDetailModal()">변경된 시간표 보기</button>
-            <button class="btn ghost sm" onclick="printTimetable()">인쇄 (PDF)</button>
+            <button class="btn ghost sm ttExtraBtn" onclick="openChgDetailModal()">변경된 시간표 보기</button>
+            <button class="btn ghost sm ttExtraBtn" onclick="printTimetable()">인쇄 (PDF)</button>
           </div>
           <div class="card" id="ttWrap"></div>
           <div class="legend">
@@ -504,7 +536,7 @@ table.grid-ed input,table.grid-ed select{width:100%;padding:5px 6px}
           </div>
         </div>
 
-        <div>
+        <div class="ttSidebar">
           <div class="sidecard notice-card" onclick="openChgModal()">
             <h3>📋 이번 주 변경된 수업 <span class="more">전체보기 →</span></h3>
             <div id="chgSummary"></div>
@@ -1166,9 +1198,9 @@ function renderPbar(){
     <select onchange="SELWEEK=+this.value;renderAll()">${WEEKS.map((x,i)=>{
       const f=new Date(x.mon);f.setDate(f.getDate()+4);
       return `<option value="${i}" ${i===SELWEEK?'selected':''}>${md(x.mon)}~${md(f)}${i===0?' (이번주)':''}</option>`}).join('')}</select>
-    <span class="muted">지난 주는 표시되지 않습니다 · 표시 주수는 [수업계] 탭에서 조정</span>
+    <span class="muted pbar-hint">지난 주는 표시되지 않습니다 · 표시 주수는 [수업계] 탭에서 조정</span>
     <span style="flex:1"></span>
-    <button class="btn ghost sm" onclick="openDaysModal()">📊 수업일수 확인</button>
+    <button class="btn ghost sm pbar-daysbtn" onclick="openDaysModal()">📊 수업일수 확인</button>
   </div>`;
   document.getElementById('pbarTT').innerHTML=h;document.getElementById('pbarSW').innerHTML=h;
 }
@@ -1261,6 +1293,20 @@ function renderChgSummary(){
 function openChgDetailModal(){document.getElementById('chgDetailModal').classList.add('on');renderChangedTT()}
 function closeChgDetailModal(){document.getElementById('chgDetailModal').classList.remove('on')}
 function openChgModal(){document.getElementById('ttWho2').textContent=ME;renderChgDetailList();document.getElementById('chgModal').classList.add('on')}
+// 모바일 전용 "더보기" 메뉴 — 이번 주 변경된 수업/학사일정/학교 안내/수업일수 확인을 별도 화면(기존 모달)으로 이동
+function toggleMobileMore(){document.getElementById('mobileMoreMenu').classList.toggle('on')}
+document.addEventListener('click',e=>{
+  const menu=document.getElementById('mobileMoreMenu');if(!menu||!menu.classList.contains('on'))return;
+  if(e.target.closest('.mobileMoreMenu')||e.target.closest('.mobileMoreBtn'))return;
+  menu.classList.remove('on');
+});
+function mobileMoreOpen(kind){
+  document.getElementById('mobileMoreMenu').classList.remove('on');
+  if(kind==='chg')openChgModal();
+  else if(kind==='cal')openCalModal();
+  else if(kind==='notice')openNoticeModal();
+  else if(kind==='days')openDaysModal();
+}
 function closeChgModal(){document.getElementById('chgModal').classList.remove('on')}
 function renderChgDetailList(){
   const el=document.getElementById('chgDetailList');if(!el)return;
