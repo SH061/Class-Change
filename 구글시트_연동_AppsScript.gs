@@ -15,7 +15,8 @@
 //    (성명, 요일, 교시가 있는 기존 격자 형식 그대로 — 형식을 바꿀 필요 없습니다)
 // 2) 같은 스프레드시트에 "설정"이라는 이름의 시트(탭)를 하나 만들고, A1셀에 "담임명단",
 //    B1셀에 수정 권한을 줄 이름을 쉼표로 나열해 적습니다. (예: 조시현,허인겸,김서경)
-//    이 목록은 여기서만(구글시트에서 직접) 관리합니다 — 브라우저에서는 못 바꿉니다.
+//    A2셀에 "표시주수", B2셀에 몇 주치를 보여줄지 숫자로 적습니다. (예: 10)
+//    이 값들은 여기서만(구글시트에서 직접) 관리합니다 — 브라우저에서는 못 바꿉니다.
 //    "학사일정", "안내" 시트는 없어도 됩니다 — 처음 등록할 때 자동으로 만들어집니다.
 // 2-1) (선택, 권장) "교사"라는 이름의 시트를 하나 더 만들고, 1행은 헤더(이름/담당과목/교과),
 //    2행부터 한 명씩 이름·담당과목·교과(자격증)를 적습니다. (예: 심서아, 화학1, 과학)
@@ -68,7 +69,8 @@ function doGet(e) {
       academic: readAcademic(ss),
       notices: readNotices(ss),
       homerooms: readHomerooms(ss),
-      teachers: readTeachers(ss)
+      teachers: readTeachers(ss),
+      weeks: readWeeks(ss)
     });
   } catch (err) {
     return jsonOut({ error: String(err) });
@@ -230,6 +232,21 @@ function readHomerooms(ss) {
     }
   }
   return [];
+}
+
+// "설정" 시트에서 "표시주수" 행을 찾아 그 옆칸(숫자)을 읽습니다. 앱의 "내 시간표/수업교체/반별 시간표"에
+// 몇 주 앞까지 보여줄지 정하는 값입니다 — 이것도 관리자가 구글시트에서 직접 관리합니다.
+function readWeeks(ss) {
+  const sh = ss.getSheetByName(CONFIG_SHEET);
+  if (!sh) return null;
+  const rows = sh.getDataRange().getValues();
+  for (let i = 0; i < rows.length; i++) {
+    if (String(rows[i][0]).trim() === '표시주수') {
+      const n = Number(rows[i][1]);
+      return n > 0 ? n : null;
+    }
+  }
+  return null;
 }
 
 // "교사" 시트: 이름 | 담당과목 | 교과(자격증) — 예: 심서아 | 화학1 | 과학

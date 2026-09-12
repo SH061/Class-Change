@@ -1248,6 +1248,7 @@ function applyRemoteSync(j){
   if(Array.isArray(j.academic))setAcademic(j.academic);
   if(Array.isArray(j.notices))Notices._s(j.notices);
   if(Array.isArray(j.homerooms))REMOTE_HOMEROOMS=j.homerooms;
+  if(j.weeks>0){setForm(Object.assign({},getForm(),{weeks:j.weeks}));computeWeeks()}
 }
 async function postAppsScript(url,body){
   const r=await fetch(url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(body)});
@@ -1323,7 +1324,7 @@ function renderPbar(){
     <select onchange="SELWEEK=+this.value;renderAll()">${WEEKS.map((x,i)=>{
       const f=new Date(x.mon);f.setDate(f.getDate()+4);
       return `<option value="${i}" ${i===SELWEEK?'selected':''}>${md(x.mon)}~${md(f)}${i===0?' (이번주)':''}</option>`}).join('')}</select>
-    <span class="muted pbar-hint">지난 주는 표시되지 않습니다 · 표시 주수는 [수업계] 탭에서 조정</span>
+    <span class="muted pbar-hint">지난 주는 표시되지 않습니다</span>
     <span style="flex:1"></span>
     <button class="btn ghost sm pbar-daysbtn" onclick="openDaysModal()">📊 수업일수 확인</button>
   </div>`;
