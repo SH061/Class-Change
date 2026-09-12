@@ -411,8 +411,8 @@ table.grid-ed input,table.grid-ed select{width:100%;padding:5px 6px}
   table.tt.clsTT td.slot{height:64px}
   table.tt.clsTT td .cl{font-size:19px}
   table.tt.clsTT td .sub{font-size:11px}
-  #view-clsTT .card:first-child{padding:10px 14px;margin-bottom:8px}
-  #view-clsTT .card h2{font-size:16px!important}
+  #view-clsTT .card:first-child{padding:10px 12px!important;margin-bottom:10px!important;align-items:center}
+  #view-clsTT .card h2{font-size:16px!important;margin:0}
   #view-clsTT label{font-size:13px!important}
   #view-clsTT select{font-size:14px!important;width:120px!important;padding:6px 8px!important}
 
@@ -428,31 +428,31 @@ table.grid-ed input,table.grid-ed select{width:100%;padding:5px 6px}
   .mobileMoreBtn{padding:10px 12px;font-size:13px}
 
   #view-tt .card{padding:8px}
-  .ttHeaderRow{padding:8px 10px!important}
+  .ttHeaderRow{padding:10px 12px!important;margin-bottom:10px!important}
   .ttHeaderRow h2{font-size:15px!important}
-  .pbar{font-size:11px;padding:6px 8px;gap:6px;flex-wrap:nowrap}
+  .pbar{font-size:11px;padding:10px 12px;gap:6px;flex-wrap:nowrap;margin-bottom:10px}
   .pbar .btn.sm{padding:5px 7px;font-size:11px}
   .pbar-daterange{display:none}
   .pbar select{font-size:11px;padding:4px 4px;max-width:120px}
 
   /* 5개 요일이 스크롤 없이 한 화면에 다 들어오도록 표 최소폭 제거하고 칸을 더 줄임 */
   #ttWrap table.tt{min-width:0}
-  #ttWrap table.tt col.phead{width:42px}
+  #ttWrap table.tt col.phead{width:44px}
   #ttWrap table.tt th .pnum{font-size:11px}
-  #ttWrap table.tt th .ptime{font-size:7px;white-space:nowrap;letter-spacing:-.5px}
+  #ttWrap table.tt th .ptime{font-size:6.3px;white-space:nowrap;letter-spacing:-.6px}
   #ttWrap table.tt td.slot{height:50px}
   #ttWrap table.tt td .cl{font-size:13px}
   #ttWrap table.tt td .sub{font-size:7.5px}
   #ttWrap table.tt td .elec{font-size:7px}
 
   table.tt.clsTT{min-width:0}
-  table.tt.clsTT col.phead{width:42px}
+  table.tt.clsTT col.phead{width:44px}
   table.tt.clsTT td.slot{height:50px}
   table.tt.clsTT td .cl{font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block}
   table.tt.clsTT td .sub{font-size:7.5px}
   table.tt.clsTT thead th span{font-size:11px!important}
   table.tt.clsTT tbody th span{font-size:10px!important}
-  table.tt.clsTT tbody th span:nth-of-type(2){font-size:7px!important;white-space:nowrap!important;letter-spacing:-.5px;display:block}
+  table.tt.clsTT tbody th span:nth-of-type(2){font-size:6.3px!important;white-space:nowrap!important;letter-spacing:-.6px;display:block}
   #view-clsTT .card:first-child{display:flex;flex-wrap:wrap}
 
   .legend{font-size:10px;gap:6px}
@@ -485,6 +485,9 @@ table.grid-ed input,table.grid-ed select{width:100%;padding:5px 6px}
   .addForm{margin-top:10px;padding-top:10px}
   .addForm input,.addForm textarea,.addForm select{font-size:13px;padding:7px 9px}
   .addForm .hint{font-size:10.5px}
+  .calGradeRow{flex-wrap:nowrap!important;gap:6px!important}
+  .calGradeRow label{flex:1;text-align:center;justify-content:center;display:flex;align-items:center;gap:3px}
+  .calGradeLbl{flex:0 0 auto;white-space:nowrap}
 
   .dcTitle{font-size:20px!important;margin-bottom:4px}
   .dcDateField{font-size:13px!important;padding:6px 10px!important;gap:4px}
@@ -692,12 +695,13 @@ table.grid-ed input,table.grid-ed select{width:100%;padding:5px 6px}
           <input id="calLast" type="number" min="1" max="7" placeholder="단축수업이면 마지막 교시(예: 4)" style="margin-top:8px">
           <input id="calPeriods" placeholder="특정 교시만 수업 불가(예: 영어듣기평가 3교시 → 3, 콤마로 여러 개)" style="margin-top:8px">
           <input id="calTitle" placeholder="제목 (예: 1차 지필시험, 수학여행)" style="margin-top:8px">
-          <div style="display:flex;gap:10px;margin-top:8px;font-size:12.5px;color:var(--muted)">
-            대상 학년: <label><input type="checkbox" id="calG1" style="width:auto"> 1학년</label>
-            <label><input type="checkbox" id="calG2" style="width:auto"> 2학년</label>
-            <label><input type="checkbox" id="calG3" style="width:auto"> 3학년</label>
-            <span class="muted">(전부 미선택 시 전체 학년)</span>
+          <div class="calGradeRow" style="display:flex;align-items:center;gap:10px;margin-top:8px;font-size:12.5px;color:var(--muted)">
+            <span class="calGradeLbl">대상:</span>
+            <label style="white-space:nowrap"><input type="checkbox" id="calG1" style="width:auto"> 1학년</label>
+            <label style="white-space:nowrap"><input type="checkbox" id="calG2" style="width:auto"> 2학년</label>
+            <label style="white-space:nowrap"><input type="checkbox" id="calG3" style="width:auto"> 3학년</label>
           </div>
+          <div class="calGradeNote muted" style="font-size:12.5px;margin-top:2px">(전부 미선택 시 전체 학년)</div>
           <label style="display:flex;gap:6px;align-items:center;margin-top:6px;font-size:12.5px;color:var(--muted)">
             <input type="checkbox" id="calNoClass" style="width:auto"> 이 날은 정상 수업이 없음(수업교체 대상에서 자동 제외)
           </label>
