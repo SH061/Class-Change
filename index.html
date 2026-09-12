@@ -376,7 +376,7 @@ table.grid-ed input,table.grid-ed select{width:100%;padding:5px 6px}
   header.top .who .btn{padding:6px 10px;font-size:11px}
   nav.tabs .wrap{padding:0 14px;gap:2px}
   nav.tabs button{padding:11px 14px;font-size:14px}
-  main{padding:10px 0 20px}
+  main.wrap{padding:10px 14px 20px}
 
   /* 내 시간표: 표 하나만 한 화면에 꽉 차게 — 사이드카드/배너/보조 버튼은 "더보기"로 이동 */
   .wide-split{grid-template-columns:1fr;gap:0}
@@ -412,7 +412,8 @@ table.grid-ed input,table.grid-ed select{width:100%;padding:5px 6px}
   table.tt.clsTT td.slot{height:64px}
   table.tt.clsTT td .cl{font-size:19px}
   table.tt.clsTT td .sub{font-size:11px}
-  #view-clsTT .card:first-child{padding:10px 12px!important;margin-bottom:10px!important;align-items:center}
+  #view-clsTT .card:first-child{padding:10px 12px!important;margin-top:0!important;margin-bottom:10px!important;align-items:center}
+  #view-clsTT .card+.card{margin-top:10px!important}
   #view-clsTT .card h2{font-size:16px!important;margin:0}
   #view-clsTT label{font-size:13px!important}
   #view-clsTT select{font-size:14px!important;width:120px!important;padding:6px 8px!important}
@@ -709,7 +710,7 @@ table.grid-ed input,table.grid-ed select{width:100%;padding:5px 6px}
             <label style="white-space:nowrap"><input type="checkbox" id="calG2" style="width:auto"> 2학년</label>
             <label style="white-space:nowrap"><input type="checkbox" id="calG3" style="width:auto"> 3학년</label>
           </div>
-          <div class="calGradeNote muted" style="font-size:12.5px;margin-top:2px">(전부 미선택 시 전체 학년)</div>
+          <div class="calGradeNote muted" style="font-size:12.5px;margin-top:2px;text-align:center">(전부 미선택 시 전체 학년)</div>
           <label style="display:flex;gap:6px;align-items:center;margin-top:6px;font-size:12.5px;color:var(--muted)">
             <input type="checkbox" id="calNoClass" style="width:auto"> 이 날은 정상 수업이 없음(수업교체 대상에서 자동 제외)
           </label>
