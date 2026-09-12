@@ -221,11 +221,12 @@ table.tt.clsTT td .sub{font-size:16px;font-weight:700}
 table.tt td.hit{background:var(--yellow)!important;outline:2px solid var(--primary-active);outline-offset:-2px}
 .chip{display:inline-block;border:1px solid var(--hairline);background:#fff;border-radius:99px;padding:5px 16px;font-size:15.5px;font-weight:700;cursor:pointer;margin:0 8px 8px 0}
 .chip.on{background:var(--primary);color:#fff;border-color:var(--primary)}
-.gradeChips{display:flex;flex-direction:column;gap:2px}
-.gradeChipRow{display:flex;flex-wrap:wrap;align-items:center}
+.gradeChips{display:flex;flex-direction:column;gap:6px}
+.gradeChipRow{display:grid;grid-template-columns:repeat(10,1fr);gap:8px}
+.gradeChipRow .chip{margin:0;text-align:center;width:100%;box-sizing:border-box}
 
 /* sub-tabs (내 시간표 하위) */
-nav.subtabs{display:flex;gap:8px;margin-bottom:18px;border-bottom:1px solid var(--hairline)}
+nav.subtabs{display:flex;gap:8px;margin-bottom:18px;border-bottom:1px solid var(--hairline);justify-content:center}
 nav.subtabs button{background:transparent;border:0;padding:12px 17px;font-size:16px;font-weight:700;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent}
 nav.subtabs button.on{color:var(--ink);border-bottom-color:var(--primary)}
 
@@ -1715,7 +1716,7 @@ function pickAllTTClass(c){
 function fullSchoolTable(){
   const d=ALLTT_DAY;
   let h='<table class="tt" style="table-layout:auto">';
-  h+='<thead><tr><th style="min-width:64px;text-align:left;padding-left:8px;font-size:18px">교사</th>';
+  h+='<thead><tr><th style="min-width:64px;text-align:center;font-size:18px">교사</th>';
   for(const p of PERIODS)h+='<th style="min-width:80px;font-size:18px">'+p+'교시</th>';
   h+='</tr></thead><tbody>';
   for(const t of M.teachers){
