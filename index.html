@@ -458,11 +458,14 @@ table.grid-ed input,table.grid-ed select{width:100%;padding:5px 6px}
   .noticeModal .sheet h2{font-size:17px!important}
   .noticeModal .sheet p.muted{font-size:12px!important}
 
+  /* 일/토 요일은 학사일정이 거의 없으므로 숨기고, 남는 폭을 월~금에 나눠줘서 글자가 한 줄에 더 잘 들어가게 함 */
+  .calGridTable th:first-child,.calGridTable td:first-child,
+  .calGridTable th:last-child,.calGridTable td:last-child{display:none}
   .calGridTable{margin-top:8px}
-  .calGridTable th{padding:4px 2px;font-size:10.5px}
-  .calGridTable td{height:52px;padding:3px 2px}
+  .calGridTable th{padding:4px 2px;font-size:11px}
+  .calGridTable td{height:58px;padding:3px 2px}
   .calGridTable .daynum{font-size:11px;margin-bottom:2px}
-  .calGridTable .evt{font-size:8px;padding:2px 3px;margin-bottom:2px}
+  .calGridTable .evt{font-size:9px;padding:2px 3px;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .calDetailBox{padding:10px 12px;margin-top:10px}
   .calDetailBox h4{font-size:13px}
   .calDetailBox .body{font-size:12px}
@@ -477,12 +480,20 @@ table.grid-ed input,table.grid-ed select{width:100%;padding:5px 6px}
   .addForm input,.addForm textarea,.addForm select{font-size:13px;padding:7px 9px}
   .addForm .hint{font-size:10.5px}
 
-  .dcSummary{font-size:14px;margin-bottom:10px}
-  .dcSummary b{font-size:17px}
-  .dcWeekTable th,.dcWeekTable td{padding:6px 3px;font-size:12px}
-  .dcWeekTable td{font-size:13px}
-  .dcTable th,.dcTable td{padding:6px 3px;font-size:12px}
-  .dcTable td.cnt{font-size:13px}
+  .dcTitle{font-size:20px!important;margin-bottom:4px}
+  .dcIntro{font-size:9.5px!important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:8px!important}
+  .dcBreak{display:block;flex-basis:100%;height:0}
+  #daysModal .btn.sm.dcCalcBtn{font-size:13px!important;padding:7px 16px!important;margin-top:4px}
+  .dcSummary{font-size:11px!important;white-space:nowrap;margin-bottom:8px;margin-top:10px}
+  .dcSummary b{font-size:13px}
+  .dcWeekTable{margin-bottom:10px}
+  .dcWeekTable th,.dcWeekTable td{padding:5px 2px;font-size:11px}
+  .dcWeekTable td{font-size:12px}
+  .dcTable th,.dcTable td{padding:5px 2px;font-size:11px}
+  .dcTable td.cnt{font-size:12px}
+  .dcTable2col th,.dcTable2col td{padding:5px 1px;font-size:10px}
+  .dcTable2col td.cnt{font-size:11px}
+  .dcExcl{font-size:10px}
   .dcPicker{max-width:100%;padding:10px 12px}
   .dcPickerHead{font-size:14px}
   .dcPickerHead button{width:26px;height:26px;font-size:14px}
@@ -634,14 +645,15 @@ table.grid-ed input,table.grid-ed select{width:100%;padding:5px 6px}
     <div class="noticeModal" id="daysModal" onclick="if(event.target===this)closeDaysModal()">
       <div class="sheet" style="position:relative;width:1040px">
         <button class="x" onclick="closeDaysModal()">✕</button>
-        <h2 style="text-align:center;font-size:32.5px;font-weight:800">수업일수 확인</h2>
-        <p class="muted" style="margin:0 0 14px;text-align:center;word-break:keep-all">기간을 정하면 그 사이 학사일정(휴업일·휴일·단축수업)을 반영해서 제 수업이 실제로 몇 번 열리는지 계산합니다.</p>
+        <h2 class="dcTitle" style="text-align:center;font-size:32.5px;font-weight:800">수업일수 확인</h2>
+        <p class="muted dcIntro" style="margin:0 0 14px;text-align:center;word-break:keep-all">기간을 정하면 그 사이 학사일정(휴업일·휴일·단축수업)을 반영해서 제 수업이 실제로 몇 번 열리는지 계산합니다.</p>
         <div style="display:flex;gap:10px;align-items:center;justify-content:center;flex-wrap:wrap">
           <button type="button" class="dcDateField" onclick="openDatePicker('start')">📅 <span id="dcStartLabel"></span></button>
           <span class="muted">~</span>
           <button type="button" class="dcDateField" onclick="openDatePicker('end')">📅 <span id="dcEndLabel"></span></button>
           <input type="date" id="eduFrom" hidden><input type="date" id="eduTo" hidden>
-          <button class="btn sm" onclick="renderEduDays()">계산하기</button>
+          <span class="dcBreak"></span>
+          <button class="btn sm dcCalcBtn" onclick="renderEduDays()">계산하기</button>
         </div>
         <div id="dcPicker" class="dcPicker" hidden>
           <div class="dcPickerHead"><button type="button" onclick="dcPickerNav(-1)">‹</button><span id="dcPickerTitle"></span><button type="button" onclick="dcPickerNav(1)">›</button></div>
@@ -2232,13 +2244,28 @@ function renderEduDays(){
   const rows=Object.keys(counts).sort();
   const WD=['월','화','수','목','금'];
   const el=document.getElementById('eduWrap');if(!el)return;
+  const narrow=window.matchMedia('(max-width:600px)').matches;
+  let dcTableHtml;
+  if(narrow&&rows.length>1){
+    // 모바일에서는 반/횟수 표가 아래로 너무 길어지지 않도록 두 칸씩 옆으로 이어붙임 (반, 횟수, 반, 횟수)
+    const half=Math.ceil(rows.length/2);
+    let body='';
+    for(let i=0;i<half;i++){
+      const k1=rows[i],k2=rows[i+half];
+      body+='<tr><td>'+k1+'</td><td class="cnt">'+counts[k1]+'회</td>'+
+        (k2?'<td>'+k2+'</td><td class="cnt">'+counts[k2]+'회</td>':'<td></td><td></td>')+'</tr>';
+    }
+    dcTableHtml='<table class="dcTable dcTable2col"><thead><tr><th>반</th><th>횟수</th><th>반</th><th>횟수</th></tr></thead><tbody>'+body+'</tbody></table>';
+  }else{
+    dcTableHtml='<table class="dcTable"><thead><tr><th>반</th><th>예정된 수업 횟수</th></tr></thead><tbody>'+
+      (rows.length?rows.map(k=>'<tr><td>'+k+'</td><td class="cnt">'+counts[k]+'회</td></tr>').join(''):'<tr><td colspan="2" class="muted">해당 기간에 예정된 수업이 없습니다.</td></tr>')+
+      '</tbody></table>';
+  }
   el.innerHTML=
     '<div class="dcSummary">선택한 기간의 평일 등교일: <b>'+schoolDays+'일</b> (휴업·휴일 제외)</div>'+
     '<table class="dcWeekTable"><thead><tr>'+WD.map(w=>'<th>'+w+'</th>').join('')+'</tr></thead>'+
     '<tbody><tr>'+[0,1,2,3,4].map(i=>'<td>'+weekdayCounts[i]+'일</td>').join('')+'</tr></tbody></table>'+
-    '<table class="dcTable"><thead><tr><th>반</th><th>예정된 수업 횟수</th></tr></thead><tbody>'+
-    (rows.length?rows.map(k=>'<tr><td>'+k+'</td><td class="cnt">'+counts[k]+'회</td></tr>').join(''):'<tr><td colspan="2" class="muted">해당 기간에 예정된 수업이 없습니다.</td></tr>')+
-    '</tbody></table>'+
+    dcTableHtml+
     (excluded.length?'<div class="dcExcl"><b>반영된 휴업·단축 내역</b>'+excluded.map(e=>'<div>· '+e+'</div>').join('')+'</div>':'');
 }
 
