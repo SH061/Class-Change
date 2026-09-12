@@ -322,7 +322,9 @@ table.grid-ed{border-collapse:collapse;width:100%;font-size:12px}
 table.grid-ed th,table.grid-ed td{border:1px solid var(--hairline);padding:5px 6px}
 table.grid-ed input,table.grid-ed select{width:100%;padding:5px 6px}
 
-#modal{position:fixed;inset:0;background:rgba(20,20,19,.45);display:flex;align-items:flex-start;justify-content:center;padding:6vh 20px;z-index:50;overflow:auto}
+/* z-index는 .noticeModal(학사일정/안내 등, 100)보다 높아야 함 — appConfirm/appAlert가
+   그 모달들 위에서 호출되는 경우(예: 안내 삭제 확인)가 많아서, 낮으면 뒤에 가려 보임 */
+#modal{position:fixed;inset:0;background:rgba(20,20,19,.45);display:flex;align-items:flex-start;justify-content:center;padding:6vh 20px;z-index:200;overflow:auto}
 #modal .card{background:var(--canvas);max-width:560px;width:100%}
 /* appConfirm/appAlert 전용 확인창 — 수업교체 확정 등 원래 폼이 있는 openModal()과는 별개로,
    PC에서 가독성 좋게 카드를 키우고 버튼을 아래 가운데로 모음 (openModal 쪽은 그대로 둠) */
