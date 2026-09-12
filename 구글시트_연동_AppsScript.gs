@@ -17,6 +17,9 @@
 // 2) 같은 스프레드시트에 "설정"이라는 이름의 시트(탭)를 하나 만들고, A1셀에 "담임명단",
 //    B1셀에 수정 권한을 줄 이름을 쉼표로 나열해 적습니다. (예: 조시현,허인겸,김서경)
 //    A2셀에 "표시주수", B2셀에 몇 주치를 보여줄지 숫자로 적습니다. (예: 10)
+//    A3셀에 "수업교체대상", B3셀에 수업교체·보강 기록을 이 시트로 받을 교사만 쉼표로
+//    나열해 적습니다. (예: 조시현,정병성,최광혁 — 관리 범위인 1학년 관련 교사만) 이 칸을
+//    비워두면(행 자체가 없으면) 예전처럼 모든 교사의 기록을 다 받습니다.
 //    이 값들은 여기서만(구글시트에서 직접) 관리합니다 — 브라우저에서는 못 바꿉니다.
 //    "학사일정", "안내" 시트는 없어도 됩니다 — 처음 등록할 때 자동으로 만들어집니다.
 // 2-1) (선택, 권장) "교사"라는 이름의 시트를 하나 더 만들고, 1행은 헤더(이름/담당과목/교과),
@@ -111,7 +114,10 @@ function doPost(e) {
     } else if (body.action === 'deleteNotice') {
       deleteRowById(ss, NOTICE_SHEET, body.id);
     } else if (body.action === 'addSwapBatch') {
-      appendSwapBatch(ss, body.entries || []);
+      const scope = readSwapScope(ss);
+      const entries = body.entries || [];
+      const allowed = scope.length ? entries.filter(function (en) { return scope.indexOf(en.applicant) >= 0; }) : entries;
+      appendSwapBatch(ss, allowed);
     } else if (body.action === 'deleteSwap') {
       deleteSwapGroup(ss, body.grp, body.id);
     } else {
@@ -257,8 +263,25 @@ function deleteRowById(ss, sheetName, id) {
   }
 }
 
+// "설정" 시트에서 "수업교체대상" 행을 찾아 그 옆칸(쉼표로 구분된 이름들)을 읽습니다.
+// 여기 적힌 교사만 수업교체/보강 기록이 이 스프레드시트에 쌓이고 브라우저로도 내려갑니다
+// (관리 범위 밖 학년 교사까지 전부 쌓이면 시트가 커져서 앱스크립트가 느려지거나 오류가
+// 날 수 있어서, 관리자가 직접 볼 필요가 있는 사람만 고를 수 있게 한 것). 이 칸이 비어있으면
+// (행 자체가 없으면) 제한 없이 전부 동기화합니다 — 기존처럼 쓰던 학교는 영향 없음.
+function readSwapScope(ss) {
+  const sh = ss.getSheetByName(CONFIG_SHEET);
+  if (!sh) return [];
+  const rows = sh.getDataRange().getValues();
+  for (let i = 0; i < rows.length; i++) {
+    if (String(rows[i][0]).trim() === '수업교체대상') {
+      return String(rows[i][1] || '').split(',').map(function (x) { return x.trim(); }).filter(Boolean);
+    }
+  }
+  return [];
+}
+
 // "설정" 시트에서 "담임명단" 행을 찾아 그 옆칸(쉼표로 구분된 이름들)을 읽습니다.
-// 이 목록은 관리자가 구글시트에서 직접 관리합니다 — 브라우저에서는 바꿀 수 없습니다.
+// 이 목록은 관리자가 구글시트에서 직접 관리합니다 — 브라우저에서는 못 바꿉니다.
 function readHomerooms(ss) {
   const sh = ss.getSheetByName(CONFIG_SHEET);
   if (!sh) return [];
@@ -332,7 +355,8 @@ function readSwaps(ss) {
       makeup: { date: r[16] || '', period: r[17] || '' }
     });
   }
-  return out;
+  const scope = readSwapScope(ss);
+  return scope.length ? out.filter(function (r) { return scope.indexOf(r.applicant) >= 0; }) : out;
 }
 
 function swapRowValues(entry) {
