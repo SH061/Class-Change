@@ -183,7 +183,12 @@ function updateAcademic(ss, id, entry) {
   throw new Error('해당 id를 찾을 수 없습니다: ' + id);
 }
 
-// ── 안내: id | date | writer | title | body ──
+// ── 안내: id | date | writer | title | body | category | dept | done ──
+// category: 'school'(학교안내) | 'grade'(학년안내). dept(관련부서)는 학교안내에서만 씀.
+// done: 'TRUE'면 완료사항으로 넘어가 초기 화면 요약 카드에서는 숨겨지고, 상세 모달의
+// "완료사항" 탭에서만 계속 확인할 수 있음(삭제 아님).
+const NOTICE_HEADER = ['id', 'date', 'writer', 'title', 'body', 'category', 'dept', 'done'];
+
 function readNotices(ss) {
   const sh = ss.getSheetByName(NOTICE_SHEET);
   if (!sh) return [];
@@ -192,19 +197,34 @@ function readNotices(ss) {
   for (let i = 1; i < rows.length; i++) {
     const r = rows[i];
     if (!r[0]) continue;
-    out.push({ id: r[0], date: r[1], writer: r[2], title: r[3], body: r[4] || '' });
+    out.push({
+      id: r[0], date: r[1], writer: r[2], title: r[3], body: r[4] || '',
+      category: r[5] || 'school', dept: r[6] || '', done: String(r[7]).toUpperCase() === 'TRUE'
+    });
   }
   return out.reverse(); // 최신 글이 맨 위로
 }
 
-function appendNotice(ss, entry, editor) {
-  if (!entry.title) throw new Error('제목이 없습니다.');
-  const sh = getOrCreateSheet(ss, NOTICE_SHEET, ['id', 'date', 'writer', 'title', 'body']);
-  const id = 'n' + new Date().getTime();
-  const today = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd');
-  sh.appendRow([id, today, editor, entry.title || '', entry.body || '']);
+function noticeRowValues(id, entry) {
+  return [
+    id, entry.date, entry.writer, entry.title || '', entry.body || '',
+    entry.category || 'school', entry.dept || '', entry.done ? 'TRUE' : 'FALSE'
+  ];
 }
 
+function appendNotice(ss, entry, editor) {
+  if (!entry.title) throw new Error('제목이 없습니다.');
+  const sh = getOrCreateSheet(ss, NOTICE_SHEET, NOTICE_HEADER);
+  const id = 'n' + new Date().getTime();
+  const today = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd');
+  sh.appendRow(noticeRowValues(id, {
+    date: today, writer: editor, title: entry.title, body: entry.body,
+    category: entry.category, dept: entry.dept, done: false
+  }));
+}
+
+// entry로 넘어온 항목만 바꾸고 나머지(작성일·작성자 등)는 기존 값을 그대로 유지합니다.
+// (예: {done:true}만 보내면 완료 체크만 반영되고 제목·내용은 그대로.)
 function updateNotice(ss, id, entry) {
   if (!id) throw new Error('수정할 항목의 id가 없습니다.');
   const sh = ss.getSheetByName(NOTICE_SHEET);
@@ -212,7 +232,13 @@ function updateNotice(ss, id, entry) {
   const values = sh.getDataRange().getValues();
   for (let i = 1; i < values.length; i++) {
     if (String(values[i][0]) === String(id)) {
-      sh.getRange(i + 1, 4, 1, 2).setValues([[entry.title || '', entry.body || '']]);
+      const cur = values[i];
+      const merged = {
+        date: cur[1], writer: cur[2], title: cur[3], body: cur[4],
+        category: cur[5] || 'school', dept: cur[6] || '', done: String(cur[7]).toUpperCase() === 'TRUE'
+      };
+      Object.keys(entry).forEach(function (k) { if (entry[k] !== undefined) merged[k] = entry[k]; });
+      sh.getRange(i + 1, 1, 1, NOTICE_HEADER.length).setValues([noticeRowValues(id, merged)]);
       return;
     }
   }

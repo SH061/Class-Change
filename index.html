@@ -141,6 +141,8 @@ table.tt.clsTT td .sub{font-size:16px;font-weight:700}
 .noticeTitle{padding:8px 0;border-bottom:1px solid var(--hairline);font-size:15.5px;font-weight:600;color:var(--ink);display:flex;gap:6px;align-items:baseline;word-break:keep-all}
 .noticeTitle:last-child{border-bottom:0}
 .noticeTitle .num{color:var(--primary);font-weight:800}
+.noticeSumGroup+.noticeSumGroup{margin-top:10px}
+.noticeSumLabel{font-size:12px;font-weight:800;color:var(--muted);margin-bottom:2px}
 
 /* 확대 모달 공통 */
 .noticeModal{position:fixed;inset:0;background:rgba(20,20,19,0);display:flex;align-items:center;justify-content:center;z-index:100;pointer-events:none;transition:background .22s}
@@ -158,10 +160,12 @@ table.tt.clsTT td .sub{font-size:16px;font-weight:700}
 .noticeItem{border-bottom:1px solid var(--hairline);padding:16px 0}
 .noticeItem:first-of-type{padding-top:14px}
 .noticeItem:last-of-type{border-bottom:0}
-.noticeItem h4{font-size:15px;margin-bottom:6px;display:flex;gap:8px;align-items:baseline}
+.noticeItem h4{font-size:15px;margin:0;display:flex;gap:8px;align-items:baseline}
 .noticeItem .num{color:var(--primary);font-weight:800}
-.noticeItem .body{font-size:13px;color:var(--body);white-space:pre-line;line-height:1.7}
+.noticeItem .body{font-size:13px;color:var(--body);white-space:pre-line;line-height:1.7;margin-top:8px}
 .noticeItem .meta{font-size:11px;color:var(--muted-soft);margin-top:6px}
+.noticeDoneChk{display:flex;align-items:center;gap:4px;font-size:12px;color:var(--muted);white-space:nowrap;cursor:pointer}
+.noticeDoneChk input{width:auto}
 .addForm{margin-top:16px;padding-top:16px;border-top:2px dashed var(--hairline)}
 .addForm input,.addForm textarea,.addForm select{width:100%;font-family:inherit;border:1px solid var(--hairline);border-radius:8px;padding:9px 11px;font-size:13px;margin-bottom:8px}
 .addForm textarea{min-height:70px;resize:vertical}
@@ -741,11 +745,20 @@ table.grid-ed input,table.grid-ed select{width:100%;padding:5px 6px}
       <div class="sheet" style="position:relative">
         <button class="x" onclick="closeNoticeModal()">✕</button>
         <h2>학교 및 학년 안내</h2>
+        <nav class="subtabs" style="margin-bottom:10px">
+          <button id="noticeCatTab-school" class="on" onclick="switchNoticeCat('school')">학교안내</button>
+          <button id="noticeCatTab-grade" onclick="switchNoticeCat('grade')">학년안내</button>
+        </nav>
         <p class="muted" style="margin:0 0 4px" id="noticePermMsg"></p>
+        <nav class="subtabs" style="margin-bottom:14px">
+          <button id="noticeSubTab-pending" class="on" onclick="switchNoticeSubtab('pending')">전달사항</button>
+          <button id="noticeSubTab-done" onclick="switchNoticeSubtab('done')">완료사항</button>
+        </nav>
         <div id="noticeList"></div>
         <div class="addForm" id="noticeAddForm" hidden>
           <div class="hint" id="noticeFormHint">+ 새 안내 추가 (1학년 담임 전용)</div>
           <input id="newTitle" placeholder="제목 (목록에는 제목만 보입니다)">
+          <input id="newDept" placeholder="관련부서 (예: 교무부)">
           <textarea id="newBody" placeholder="내용"></textarea>
           <div class="row" style="margin-top:8px;gap:8px">
             <button class="btn sm" id="noticeSubmitBtn" onclick="addNotice()">등록</button>
@@ -1611,23 +1624,42 @@ async function delCalConfirm(i){
 }
 
 /* --- 학교 및 학년 안내 요약 카드 + 확대 모달 --- */
+// 요약 카드는 "학교"/"학년" 구분으로 나누고, 완료 처리된 건은 숨김(전달사항만 보여줌).
 function renderNoticeSummary(){
   const el=document.getElementById('noticeTitles');if(!el)return;
-  const list=Notices.all();
-  el.innerHTML=list.length?list.slice(0,5).map((n,i)=>'<div class="noticeTitle"><span class="num">'+(i+1)+'</span>'+n.title+'</div>').join('')
-    :'<p class="muted" style="margin:4px 0">등록된 안내가 없습니다.</p>';
+  const all=Notices.all().filter(n=>!n.done);
+  const group=(cat,label)=>{
+    const list=all.filter(n=>(n.category||'school')===cat);
+    return '<div class="noticeSumGroup"><div class="noticeSumLabel">'+label+'</div>'+
+      (list.length?list.slice(0,3).map((n,i)=>'<div class="noticeTitle"><span class="num">'+(i+1)+'</span>'+n.title+'</div>').join('')
+        :'<p class="muted" style="margin:4px 0">전달사항이 없습니다.</p>')+'</div>';
+  };
+  el.innerHTML=group('school','학교')+group('grade','학년');
 }
 function openNoticeModal(){renderNoticeModalList();document.getElementById('noticeModal').classList.add('on')}
 function closeNoticeModal(){document.getElementById('noticeModal').classList.remove('on')}
+let NOTICE_CAT='school',NOTICE_SUBTAB='pending',NOTICE_OPEN=new Set();
+function switchNoticeCat(cat){NOTICE_CAT=cat;cancelNoticeEdit();renderNoticeModalList()}
+function switchNoticeSubtab(sub){NOTICE_SUBTAB=sub;renderNoticeModalList()}
+function toggleNoticeOpen(id){if(NOTICE_OPEN.has(id))NOTICE_OPEN.delete(id);else NOTICE_OPEN.add(id);renderNoticeModalList()}
 function renderNoticeModalList(){
-  const list=Notices.all();
+  document.getElementById('noticeCatTab-school').classList.toggle('on',NOTICE_CAT==='school');
+  document.getElementById('noticeCatTab-grade').classList.toggle('on',NOTICE_CAT==='grade');
+  document.getElementById('noticeSubTab-pending').classList.toggle('on',NOTICE_SUBTAB==='pending');
+  document.getElementById('noticeSubTab-done').classList.toggle('on',NOTICE_SUBTAB==='done');
+  document.getElementById('newDept').hidden=NOTICE_CAT!=='school';
   document.getElementById('noticePermMsg').textContent=isHomeroom()?'1학년 담임 선생님으로 로그인되어 있어 새 안내를 추가할 수 있습니다.':'1학년 담임 선생님만 새 안내를 추가할 수 있습니다.';
+  const list=Notices.all().filter(n=>(n.category||'school')===NOTICE_CAT&&!!n.done===(NOTICE_SUBTAB==='done'));
   document.getElementById('noticeList').innerHTML=list.length?list.map((n,i)=>
-    '<div class="noticeItem"><h4><span class="num">'+(i+1)+'</span>'+n.title+'</h4>'+
-    (n.body?'<div class="body">'+n.body+'</div>':'')+
-    '<div class="meta">'+n.writer+' 선생님 · '+md(dparse(n.date))+
-    (isHomeroom()?' <button class="btn sm ghost" style="margin-left:8px" onclick="startNoticeEdit(\''+n.id+'\')">수정</button> <button class="btn sm ghost" onclick="delNoticeConfirm(\''+n.id+'\')">삭제</button>':'')+'</div></div>'
-  ).join(''):'<p class="muted">등록된 안내가 없습니다.</p>';
+    '<div class="noticeItem"><div class="row" style="align-items:center;gap:8px;cursor:pointer" onclick="toggleNoticeOpen(\''+n.id+'\')">'+
+    '<h4 style="flex:1"><span class="num">'+(i+1)+'</span>'+n.title+'</h4>'+
+    (isHomeroom()?'<label class="noticeDoneChk" onclick="event.stopPropagation()"><input type="checkbox" '+(n.done?'checked':'')+' onchange="toggleNoticeDone(\''+n.id+'\',this.checked)"> 완료</label>'
+      :(n.done?'<span class="tag">완료</span>':''))+
+    '</div>'+
+    (NOTICE_OPEN.has(n.id)?'<div class="body">'+(n.body||'(내용 없음)')+'</div>':'')+
+    '<div class="meta">'+md(dparse(n.date))+(n.category!=='grade'&&n.dept?' · '+n.dept:'')+' · '+n.writer+' 선생님'+
+    (isHomeroom()?' <button class="btn sm ghost" style="margin-left:8px" onclick="event.stopPropagation();startNoticeEdit(\''+n.id+'\')">수정</button> <button class="btn sm ghost" onclick="event.stopPropagation();delNoticeConfirm(\''+n.id+'\')">삭제</button>':'')+'</div></div>'
+  ).join(''):'<p class="muted">'+(NOTICE_SUBTAB==='done'?'완료된 안내가 없습니다.':'등록된 안내가 없습니다.')+'</p>';
   document.getElementById('noticeAddForm').hidden=!isHomeroom();
 }
 let NOTICE_EDIT_ID=null;
@@ -1635,39 +1667,40 @@ let NOTICE_EDIT_ID=null;
 function startNoticeEdit(id){
   const n=Notices.all().find(x=>x.id===id);if(!n||!isHomeroom())return;
   NOTICE_EDIT_ID=id;
+  NOTICE_CAT=n.category||'school';NOTICE_SUBTAB=n.done?'done':'pending';
   document.getElementById('newTitle').value=n.title||'';
+  document.getElementById('newDept').value=n.dept||'';
   document.getElementById('newBody').value=n.body||'';
   document.getElementById('noticeFormHint').textContent='✎ 안내 수정 중 (1학년 담임 전용)';
   document.getElementById('noticeSubmitBtn').textContent='수정 저장';
   document.getElementById('noticeCancelEditBtn').hidden=false;
+  renderNoticeModalList();
   document.getElementById('noticeAddForm').scrollIntoView({block:'nearest'});
 }
 function cancelNoticeEdit(){
   NOTICE_EDIT_ID=null;
-  document.getElementById('newTitle').value='';document.getElementById('newBody').value='';
+  document.getElementById('newTitle').value='';document.getElementById('newDept').value='';document.getElementById('newBody').value='';
   document.getElementById('noticeFormHint').textContent='+ 새 안내 추가 (1학년 담임 전용)';
   document.getElementById('noticeSubmitBtn').textContent='등록';
   document.getElementById('noticeCancelEditBtn').hidden=true;
 }
 async function addNotice(){
   if(!isHomeroom())return;
-  const t=val('newTitle').trim(),b=val('newBody').trim();
+  const t=val('newTitle').trim(),b=val('newBody').trim(),dept=NOTICE_CAT==='school'?val('newDept').trim():'';
   if(!t){alert('제목을 입력하세요.');return}
   const editing=!!NOTICE_EDIT_ID;
+  const entry={title:t,body:b,category:NOTICE_CAT,dept};
   if(ACTIVE_APPS_URL){
-    try{const res=await postAppsScript(ACTIVE_APPS_URL,editing?{action:'updateNotice',id:NOTICE_EDIT_ID,entry:{title:t,body:b},editor:ME}:{action:'addNotice',entry:{title:t,body:b},editor:ME});
+    try{const res=await postAppsScript(ACTIVE_APPS_URL,editing?{action:'updateNotice',id:NOTICE_EDIT_ID,entry,editor:ME}:{action:'addNotice',entry,editor:ME});
       if(res.error){alert('저장 실패: '+res.error);return}
       applyRemoteSync(res);
     }catch(err){alert('저장 실패: '+err.message);return}
   }else if(editing){
     const a=Notices.all();const idx=a.findIndex(x=>x.id===NOTICE_EDIT_ID);
-    if(idx>=0){a[idx].title=t;a[idx].body=b;Notices._s(a);}
-  }else{Notices.add({title:t,body:b});}
-  NOTICE_EDIT_ID=null;
-  document.getElementById('noticeFormHint').textContent='+ 새 안내 추가 (1학년 담임 전용)';
-  document.getElementById('noticeSubmitBtn').textContent='등록';
-  document.getElementById('noticeCancelEditBtn').hidden=true;
-  document.getElementById('newTitle').value='';document.getElementById('newBody').value='';
+    if(idx>=0)Object.assign(a[idx],entry);
+    Notices._s(a);
+  }else{Notices.add(Object.assign({done:false},entry));}
+  cancelNoticeEdit();
   renderNoticeModalList();renderNoticeSummary();
 }
 async function delNoticeConfirm(id){
@@ -1679,6 +1712,20 @@ async function delNoticeConfirm(id){
       applyRemoteSync(res);
     }catch(err){alert('삭제 실패: '+err.message);return}
   }else{Notices.remove(id);}
+  renderNoticeModalList();renderNoticeSummary();
+}
+// 완료 체크박스 — 삭제가 아니라 상태만 바꿔서, 나중에도 "완료사항" 탭에서 확인할 수 있게 함.
+async function toggleNoticeDone(id,done){
+  if(!isHomeroom())return;
+  if(ACTIVE_APPS_URL){
+    try{const res=await postAppsScript(ACTIVE_APPS_URL,{action:'updateNotice',id,entry:{done},editor:ME});
+      if(res.error){alert('저장 실패: '+res.error);renderNoticeModalList();return}
+      applyRemoteSync(res);
+    }catch(err){alert('저장 실패: '+err.message);renderNoticeModalList();return}
+  }else{
+    const a=Notices.all();const idx=a.findIndex(x=>x.id===id);
+    if(idx>=0){a[idx].done=done;Notices._s(a);}
+  }
   renderNoticeModalList();renderNoticeSummary();
 }
 
