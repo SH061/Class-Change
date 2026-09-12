@@ -3,12 +3,13 @@
 // 시간표(전체시간표 시트)는 "읽기 전용" — 구글시트에서 고치면 앱에 그대로 반영되고,
 // 앱(브라우저)에서는 시간표를 고칠 수 없습니다.
 //
-// 다만 아래 2가지는 "1학년 담임"으로 등록된 사람만 브라우저에서 직접 등록/삭제할 수 있고,
-// 그 내용이 이 스프레드시트에 그대로 저장되어 다른 모든 사람의 화면에도 반영됩니다.
-//   - 학사일정 (휴업일·휴일·단축수업·시험·행사·회의)
-//   - 학교 및 학년 안내
-// ([수업계] 탭의 학사일정 표는 기존처럼 관리자가 직접 그 화면에서 대량으로 수정하는 용도로
-//   남겨뒀습니다 — 이건 그 브라우저에만 저장되는 별개의 로컬 편집 기능입니다.)
+// 다만 아래 항목들은 브라우저에서 직접 등록/삭제할 수 있고, 그 내용이 이 스프레드시트에
+// 그대로 저장되어 다른 모든 사람의 화면에도 반영됩니다.
+//   - 학사일정 (휴업일·휴일·단축수업·시험·행사·회의) — "1학년 담임"만 등록/수정/삭제 가능
+//   - 학교 및 학년 안내 — "1학년 담임"만 등록/수정/삭제 가능
+//   - 수업교체·보강 확정 기록 — 아무 교사나 자기 자신의 것을 등록/취소 가능. 이걸 통해
+//     반별 시간표에 접속한 모든 사람이 확정된 수업교체·보강을 실시간으로 볼 수 있습니다.
+//     ("학사일정"/"안내"/"수업교체" 시트는 없어도 됩니다 — 처음 등록할 때 자동으로 만들어집니다.)
 //
 // ── 사용법 ──────────────────────────────────────────────
 // 1) 지금 쓰시는 "전체교사 시간표"를 구글시트에 그대로 붙여넣습니다.
@@ -52,6 +53,7 @@ const ACADEMIC_SHEET = '학사일정';
 const NOTICE_SHEET = '안내';
 const CONFIG_SHEET = '설정';
 const TEACHER_SHEET = '교사'; // 이름 | 담당과목 | 교과(자격증) — "동교과 보강" 판정에 쓰임
+const SWAP_SHEET = '수업교체'; // 확정된 맞교체/보강 기록 — 반별 시간표에 모두에게 반영됨
 
 function doGet(e) {
   try {
@@ -70,26 +72,31 @@ function doGet(e) {
       notices: readNotices(ss),
       homerooms: readHomerooms(ss),
       teachers: readTeachers(ss),
-      weeks: readWeeks(ss)
+      weeks: readWeeks(ss),
+      swaps: readSwaps(ss)
     });
   } catch (err) {
     return jsonOut({ error: String(err) });
   }
 }
 
-// 브라우저(1학년 담임)가 학사일정/안내를 추가·삭제할 때만 호출됩니다.
-// 그 외 어떤 것도 앱에서 이 스프레드시트로 써 넣지 않습니다(시간표·기타 설정은 여기서 안 건드림).
+// 학사일정/안내 추가·삭제는 "1학년 담임"만 — 그 외(수업교체·보강 기록)는 자기 자신의
+// 시간표를 바꾸는 것이므로 아무 교사나 가능합니다. 시간표·기타 설정은 여기서 안 건드림.
+const HOMEROOM_ONLY_ACTIONS = ['addAcademic', 'updateAcademic', 'deleteAcademic', 'addNotice', 'updateNotice', 'deleteNotice'];
+
 function doPost(e) {
   try {
     const body = JSON.parse(e.postData.contents);
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     const editor = String(body.editor || '').trim();
-    const homerooms = readHomerooms(ss);
-    if (!homerooms.length) {
-      return jsonOut({ error: '"설정" 시트에 담임명단이 등록되어 있지 않습니다. A1=담임명단, B1=이름들(쉼표구분)을 채워주세요.' });
-    }
-    if (!homerooms.includes(editor)) {
-      return jsonOut({ error: '수정 권한이 없습니다: ' + editor });
+    if (HOMEROOM_ONLY_ACTIONS.indexOf(body.action) >= 0) {
+      const homerooms = readHomerooms(ss);
+      if (!homerooms.length) {
+        return jsonOut({ error: '"설정" 시트에 담임명단이 등록되어 있지 않습니다. A1=담임명단, B1=이름들(쉼표구분)을 채워주세요.' });
+      }
+      if (!homerooms.includes(editor)) {
+        return jsonOut({ error: '수정 권한이 없습니다: ' + editor });
+      }
     }
     if (body.action === 'addAcademic') {
       appendAcademic(ss, body.entry || {});
@@ -103,10 +110,14 @@ function doPost(e) {
       updateNotice(ss, body.id, body.entry || {});
     } else if (body.action === 'deleteNotice') {
       deleteRowById(ss, NOTICE_SHEET, body.id);
+    } else if (body.action === 'addSwapBatch') {
+      appendSwapBatch(ss, body.entries || []);
+    } else if (body.action === 'deleteSwap') {
+      deleteSwapGroup(ss, body.grp, body.id);
     } else {
       return jsonOut({ error: '알 수 없는 action: ' + body.action });
     }
-    return jsonOut({ ok: true, academic: readAcademic(ss), notices: readNotices(ss) });
+    return jsonOut({ ok: true, academic: readAcademic(ss), notices: readNotices(ss), swaps: readSwaps(ss) });
   } catch (err) {
     return jsonOut({ error: String(err) });
   }
@@ -266,6 +277,70 @@ function readTeachers(ss) {
     lines.push([name, subject, dept].join(','));
   }
   return lines.join('\n');
+}
+
+// ── 수업교체: id | type | applicant | initiator | grp | primary | sameDept | reason | writeDate |
+//    absent_date | absent_grade | absent_cls | absent_period | absent_subject |
+//    cover_teacher | cover_subject | makeup_date | makeup_period ──
+// 맞교체(swap) 1건은 당사자 두 명이 각자의 시점으로 레코드 2개(같은 grp)를, 3인 이상 연쇄이동은
+// 3개를 함께 씁니다. id는 브라우저(각자 기기)가 만들어 그대로 저장 — 서버가 새로 만들지 않습니다.
+// 아무 교사나 자기 자신의 교체·보강 기록을 쓸 수 있습니다(1학년 담임 전용 아님).
+const SWAP_HEADER = ['id', 'type', 'applicant', 'initiator', 'grp', 'primary', 'sameDept', 'reason', 'writeDate',
+  'absent_date', 'absent_grade', 'absent_cls', 'absent_period', 'absent_subject',
+  'cover_teacher', 'cover_subject', 'makeup_date', 'makeup_period'];
+
+function readSwaps(ss) {
+  const sh = ss.getSheetByName(SWAP_SHEET);
+  if (!sh) return [];
+  const rows = sh.getDataRange().getDisplayValues();
+  const out = [];
+  for (let i = 1; i < rows.length; i++) {
+    const r = rows[i];
+    if (!r[0]) continue;
+    out.push({
+      id: r[0], type: r[1], applicant: r[2], initiator: r[3], grp: r[4] || undefined,
+      primary: r[5] === '' ? undefined : String(r[5]).toUpperCase() === 'TRUE',
+      sameDept: String(r[6]).toUpperCase() === 'TRUE', reason: r[7] || '', writeDate: r[8] || '',
+      absent: { date: r[9], grade: r[10], cls: r[11], period: r[12] ? Number(r[12]) : '', subject: r[13] || '' },
+      cover: { teacher: r[14] || '', subject: r[15] || '' },
+      makeup: { date: r[16] || '', period: r[17] || '' }
+    });
+  }
+  return out;
+}
+
+function swapRowValues(entry) {
+  const a = entry.absent || {}, c = entry.cover || {}, mk = entry.makeup || {};
+  return [
+    entry.id, entry.type, entry.applicant, entry.initiator || '', entry.grp || '',
+    entry.primary === undefined ? '' : (entry.primary ? 'TRUE' : 'FALSE'),
+    entry.sameDept ? 'TRUE' : 'FALSE', entry.reason || '', entry.writeDate || '',
+    a.date || '', a.grade || '', a.cls || '', a.period || '', a.subject || '',
+    c.teacher || '', c.subject || '', mk.date || '', mk.period || ''
+  ];
+}
+
+function appendSwapBatch(ss, entries) {
+  if (!entries.length) return;
+  const sh = getOrCreateSheet(ss, SWAP_SHEET, SWAP_HEADER);
+  const values = entries.map(function (entry) {
+    if (!entry.id) throw new Error('레코드에 id가 없습니다.');
+    return swapRowValues(entry);
+  });
+  sh.getRange(sh.getLastRow() + 1, 1, values.length, SWAP_HEADER.length).setValues(values);
+}
+
+// grp가 있으면 같은 grp를 가진 모든 행을(맞교체 양쪽 당사자), 없으면 그 id 하나만 지웁니다.
+function deleteSwapGroup(ss, grp, id) {
+  const sh = ss.getSheetByName(SWAP_SHEET);
+  if (!sh) return;
+  const values = sh.getDataRange().getValues();
+  const rowsToDelete = [];
+  for (let i = 1; i < values.length; i++) {
+    const matches = grp ? String(values[i][4]) === String(grp) : String(values[i][0]) === String(id);
+    if (matches) rowsToDelete.push(i + 1);
+  }
+  rowsToDelete.sort(function (a, b) { return b - a; }).forEach(function (rowNum) { sh.deleteRow(rowNum); });
 }
 
 function jsonOut(obj) {

@@ -1195,18 +1195,37 @@ function acPeriodBlocks(isoDate){
 const Store={
   all(){try{return JSON.parse(lsGet(LS.changes))||[]}catch(e){return[]}},
   _s(a){lsSet(LS.changes,JSON.stringify(a))},
-  add(r){const a=this.all();r.id='c'+Date.now()+Math.random().toString(36).slice(2,5);a.push(r);this._s(a);return r},
+  // 확정된 수업교체/보강은 이 브라우저에도 즉시 저장하고(빠른 화면 반영), 앱스크립트가 연결돼
+  // 있으면 PENDING_SWAP_SYNC에 모아뒀다가 done()에서 한꺼번에 구글시트로도 올려서
+  // 반별 시간표를 보는 모든 사람에게 반영되게 합니다.
+  add(r){const a=this.all();r.id='c'+Date.now()+Math.random().toString(36).slice(2,5);a.push(r);this._s(a);PENDING_SWAP_SYNC.push(r);return r},
   remove(id){this._s(this.all().filter(x=>x.id!==id))},
   // 맞교체/연쇄이동처럼 한 번의 확정으로 여러 명의 기록이 함께 생긴 경우, 하나를 취소하면
   // 같은 grp(묶음 번호)를 가진 기록을 전부 같이 지워야 관련된 모든 교사의 시간표가 정상으로 되돌아갑니다.
   removeGroup(id){
     const a=this.all();const target=a.find(x=>x.id===id);
-    if(!target){this.remove(id);return}
+    if(!target){this.remove(id);flushSwapDelete(null,id);return}
     const grp=target.grp;
     this._s(grp?a.filter(x=>x.grp!==grp):a.filter(x=>x.id!==id));
+    flushSwapDelete(grp,id);
   },
   newGrp(){return 'g'+Date.now()+Math.random().toString(36).slice(2,6)}
 };
+// 구글시트로 올릴 확정 기록을 모아두는 큐(done()에서 flushSwapSync()로 비움).
+let PENDING_SWAP_SYNC=[];
+async function flushSwapSync(){
+  if(!ACTIVE_APPS_URL||!PENDING_SWAP_SYNC.length)return;
+  const batch=PENDING_SWAP_SYNC.splice(0,PENDING_SWAP_SYNC.length);
+  try{const res=await postAppsScript(ACTIVE_APPS_URL,{action:'addSwapBatch',entries:batch,editor:ME});
+    if(!res.error){applyRemoteSync(res);renderAll()}}
+  catch(e){/* 오프라인 등: 다음 저장 때 다시 시도되지 않으므로, 실패해도 로컬 기록은 남아있음 */}
+}
+async function flushSwapDelete(grp,id){
+  if(!ACTIVE_APPS_URL)return;
+  try{const res=await postAppsScript(ACTIVE_APPS_URL,{action:'deleteSwap',grp,id,editor:ME});
+    if(!res.error){applyRemoteSync(res);renderAll()}}
+  catch(e){}
+}
 
 /* ===== 학교 및 학년 안내 (1학년 담임 전용 작성) ===== */
 const Notices={
@@ -1249,6 +1268,9 @@ function applyRemoteSync(j){
   if(Array.isArray(j.notices))Notices._s(j.notices);
   if(Array.isArray(j.homerooms))REMOTE_HOMEROOMS=j.homerooms;
   if(j.weeks>0){setForm(Object.assign({},getForm(),{weeks:j.weeks}));computeWeeks()}
+  // 수업교체/보강 확정 기록 — 구글시트가 진실의 원천. 서버 응답으로 통째로 교체해서
+  // 다른 선생님이 확정한 것도 반별 시간표 등 모든 화면에 그대로 보이게 함.
+  if(Array.isArray(j.swaps))Store._s(j.swaps);
 }
 async function postAppsScript(url,body){
   const r=await fetch(url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(body)});
@@ -2134,7 +2156,8 @@ function confirmSub(name,same,d,p){
       cover:{teacher:name,subject:val('mCoverSubj')},makeup:{date:val('mMk'),period:val('mMkP')}});done()});
 }
 function done(){PICK=DRAG=SWFROM=SWTO=SWPART=CHAINSEL=CHAIN2SEL=null;CHAINS=[];CHAINS2=[];renderAll();
-  document.getElementById('swResult').innerHTML='<div class="notice">변경이 저장되었습니다. 시간표 색과 아래 목록에서 확인하세요.</div>';}
+  document.getElementById('swResult').innerHTML='<div class="notice">변경이 저장되었습니다. 시간표 색과 아래 목록에서 확인하세요.</div>';
+  flushSwapSync();}
 
 /* ===== 확정 목록 ===== */
 function renderChgList(){
