@@ -2151,7 +2151,9 @@ function renderChgList(){
       '<b>'+g.people.join(', ')+'</b> '+g.people.length+'명의 시간표가 함께 변경되었습니다 <span class="tag">자세히 보기</span></div>';
   });
   mine.forEach(r=>{const a=r.absent,role=(r.type==='sub'&&r.applicant!==who)?'보강담당':'신청';
-    html+='<div class="chgitem"><button class="x" onclick="delChg(\''+r.id+'\')" title="취소(원래대로 복구)">✕</button>'+
+    const clickable=!!r.grp;
+    html+='<div class="chgitem'+(clickable?' chggroup':'')+'"'+(clickable?' onclick="openGroupDetail(\''+r.grp+'\')" style="cursor:pointer"':'')+'>'+
+      '<button class="x" onclick="'+(clickable?'event.stopPropagation();':'')+'delChg(\''+r.id+'\')" title="취소(원래대로 복구)">✕</button>'+
       '<b>'+(a.date?dotShort(dparse(a.date)):'')+'</b> '+a.grade+'-'+a.cls+' '+a.period+'교시 '+a.subject+
       ' — '+(r.type==='swap'?'맞교체 · ':'보강 · ')+r.cover.teacher+' <span class="tag">'+role+'</span></div>';});
   el.innerHTML=html;
