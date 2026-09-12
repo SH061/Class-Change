@@ -291,8 +291,6 @@ table.cmp s{color:var(--muted-soft)}
 .chgitem .x{float:right;cursor:pointer;color:var(--muted);border:0;background:none;font-size:14px}
 
 /* 수업교체/보강 화면 — 내 시간표 탭과 동일한 크기로 통일 (pbar는 건드리지 않음) */
-/* 표 칸의 실제 글자크기·높이는 이미 [내 시간표]와 같지만, 왼쪽 표 영역이 반쪽으로 나뉘어 좁아 보였던 것을 [내 시간표]처럼 넓게 */
-#view-swap .split{grid-template-columns:minmax(0,1fr) 340px}
 #view-swap #swActorLabel{font-size:25px!important}
 #view-swap .panel label{font-size:16px!important}
 #view-swap select#swActorSel{font-size:16px;width:182px;padding:8px 10px}
@@ -346,6 +344,8 @@ table.grid-ed input,table.grid-ed select{width:100%;padding:5px 6px}
   body:not(.print-tt) #view-tt{display:none!important}
   body:not(.print-jilji) #view-jilji{display:none!important}
   body:not(.print-tt):not(.print-jilji) #view-swap,body:not(.print-tt):not(.print-jilji) #view-mgr{display:none!important}
+  /* 수업교체일지를 인쇄할 때 상단 제목바/체크박스 목록이 혹시라도 남아 빈 페이지를 만들지 않도록 이중으로 확실히 숨김 */
+  body.print-jilji .jbar,body.print-jilji #jiljiSelWrap{display:none!important}
   .jscale{transform:none!important}
   .jilji{width:270mm;margin:0 auto}
   .jilji + .jilji{page-break-before:always}
@@ -447,7 +447,7 @@ table.grid-ed input,table.grid-ed select{width:100%;padding:5px 6px}
   /* 5개 요일이 스크롤 없이 한 화면에 다 들어오도록 표 최소폭 제거하고 칸을 더 줄임 */
   #ttWrap table.tt{min-width:0}
   #ttWrap table.tt col.phead{width:44px}
-  #ttWrap table.tt th .pnum{font-size:11px}
+  #ttWrap table.tt th .pnum{font-size:14px}
   #ttWrap table.tt th .ptime{font-size:6.3px;white-space:nowrap;letter-spacing:-.6px}
   #ttWrap table.tt td.slot{height:50px}
   #ttWrap table.tt td .cl{font-size:13px}
@@ -772,7 +772,7 @@ table.grid-ed input,table.grid-ed select{width:100%;padding:5px 6px}
         <span style="flex:1"></span>
         <h2 style="font-size:26px;text-align:center;margin:0">수업교체일지</h2>
         <span style="flex:1;display:flex;justify-content:flex-end">
-          <button class="btn ghost sm" onclick="printJilji()">인쇄 (A4 세로)</button>
+          <button class="btn ghost sm" onclick="printJilji()">인쇄 (A4 가로)</button>
         </span>
       </div>
       <div id="jiljiSelWrap"></div>
@@ -787,6 +787,7 @@ table.grid-ed input,table.grid-ed select{width:100%;padding:5px 6px}
 
     <!-- ===== 반별 시간표 ===== -->
     <section id="view-clsTT" hidden>
+      <div id="pbarClsTT"></div>
       <div class="card noprint" style="display:flex;align-items:center;gap:14px;margin-bottom:14px">
         <h2 style="font-size:26px">반별 시간표</h2><span style="flex:1"></span>
         <label style="font-size:18px;font-weight:600">반 선택</label><select id="clsSel2" onchange="renderClassTT2()" style="width:160px;font-size:18px;padding:8px 10px"></select>
@@ -1311,6 +1312,7 @@ function renderPbar(){
     <button class="btn ghost sm pbar-daysbtn" onclick="openDaysModal()">📊 수업일수 확인</button>
   </div>`;
   document.getElementById('pbarTT').innerHTML=h;document.getElementById('pbarSW').innerHTML=h;
+  const pcls=document.getElementById('pbarClsTT');if(pcls)pcls.innerHTML=h;
 }
 function navWeek(d){SELWEEK=Math.max(0,Math.min(WEEKS.length-1,SELWEEK+d));renderAll()}
 
@@ -1385,7 +1387,7 @@ function renderTTSidebar(){renderChgSummary();renderCalWeekSummary();renderNotic
 /* --- 이번 주 변경된 수업 요약 카드 + 확대 모달(기존 상세비교 재사용) --- */
 function renderChgSummary(){
   const el=document.getElementById('chgSummary');if(!el)return;
-  const mine=Store.all().filter(x=>x.applicant===ME||x.cover.teacher===ME)
+  const mine=Store.all().filter(x=>x.applicant===ME||(x.type!=='swap'&&x.cover.teacher===ME))
     .sort((a,b)=>(b.absent.date||'').localeCompare(a.absent.date||'')).slice(0,5);
   if(!mine.length){el.innerHTML='<p class="muted" style="margin:4px 0">최근 변경 내역이 없습니다.</p>';return}
   el.innerHTML=mine.map(r=>{
@@ -1420,7 +1422,7 @@ function mobileMoreOpen(kind){
 function closeChgModal(){document.getElementById('chgModal').classList.remove('on')}
 function renderChgDetailList(){
   const el=document.getElementById('chgDetailList');if(!el)return;
-  const mine=Store.all().filter(x=>x.applicant===ME||x.cover.teacher===ME)
+  const mine=Store.all().filter(x=>x.applicant===ME||(x.type!=='swap'&&x.cover.teacher===ME))
     .sort((a,b)=>(b.absent.date||'').localeCompare(a.absent.date||''));
   if(!mine.length){el.innerHTML='<p class="muted" style="text-align:center">최근 변경 내역이 없습니다.</p>';return}
   el.innerHTML=mine.map(r=>{
