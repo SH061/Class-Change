@@ -414,11 +414,11 @@ table.grid-ed input,table.grid-ed select{width:100%;padding:5px 6px}
   table.tt.clsTT td.slot{height:64px}
   table.tt.clsTT td .cl{font-size:19px}
   table.tt.clsTT td .sub{font-size:11px}
-  #view-clsTT .card:first-child{padding:10px 12px!important;margin-top:0!important;margin-bottom:10px!important;align-items:center}
+  #clsTTHeaderCard{padding:10px 12px!important;margin-top:0!important;margin-bottom:10px!important;align-items:center}
   #view-clsTT .card+.card{margin-top:10px!important}
   #view-clsTT .card h2{font-size:16px!important;margin:0}
   #view-clsTT label{font-size:13px!important}
-  #view-clsTT select{font-size:14px!important;width:120px!important;padding:6px 8px!important}
+  #view-clsTT #clsSel2{font-size:14px!important;width:120px!important;padding:6px 8px!important}
 
   /* "더보기"로 열리는 모달들도 화면에 맞게 여백 축소 */
   .noticeModal .sheet{padding:20px 16px}
@@ -458,13 +458,13 @@ table.grid-ed input,table.grid-ed select{width:100%;padding:5px 6px}
 
   table.tt.clsTT{min-width:0}
   table.tt.clsTT col.phead{width:44px}
-  table.tt.clsTT td.slot{height:50px}
-  table.tt.clsTT td .cl{font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block}
-  table.tt.clsTT td .sub{font-size:7.5px}
-  table.tt.clsTT thead th span{font-size:11px!important}
-  table.tt.clsTT tbody th span{font-size:10px!important}
-  table.tt.clsTT tbody th span:nth-of-type(2){font-size:6.3px!important;white-space:nowrap!important;letter-spacing:-.6px;display:block}
-  #view-clsTT .card:first-child{display:flex;flex-wrap:wrap}
+  table.tt.clsTT td.slot{height:58px}
+  table.tt.clsTT td .cl{font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block}
+  table.tt.clsTT td .sub{font-size:9px}
+  table.tt.clsTT thead th span{font-size:12px!important}
+  table.tt.clsTT tbody th span{font-size:11px!important}
+  table.tt.clsTT tbody th span:nth-of-type(2){font-size:6.8px!important;white-space:nowrap!important;letter-spacing:-.6px;display:block}
+  #clsTTHeaderCard{display:flex;flex-wrap:wrap}
 
   .legend{font-size:10px;gap:6px}
   .legend i{width:8px;height:8px}
@@ -790,7 +790,7 @@ table.grid-ed input,table.grid-ed select{width:100%;padding:5px 6px}
     <!-- ===== 반별 시간표 ===== -->
     <section id="view-clsTT" hidden>
       <div id="pbarClsTT"></div>
-      <div class="card noprint" style="display:flex;align-items:center;gap:14px;margin-bottom:14px">
+      <div class="card noprint" id="clsTTHeaderCard" style="display:flex;align-items:center;gap:14px;margin-bottom:14px">
         <h2 style="font-size:26px">반별 시간표</h2><span style="flex:1"></span>
         <label style="font-size:18px;font-weight:600">반 선택</label><select id="clsSel2" onchange="renderClassTT2()" style="width:160px;font-size:18px;padding:8px 10px"></select>
       </div>
