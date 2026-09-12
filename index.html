@@ -356,9 +356,18 @@ table.grid-ed input,table.grid-ed select{width:100%;padding:5px 6px}
   /* 수업교체일지를 인쇄할 때 상단 제목바/체크박스 목록이 혹시라도 남아 빈 페이지를 만들지 않도록 이중으로 확실히 숨김 */
   body.print-jilji .jbar,body.print-jilji #jiljiSelWrap{display:none!important}
   .jscale{transform:none!important}
-  .jilji{width:270mm;margin:0 auto;page-break-inside:avoid;page-break-after:avoid}
+  /* 화면에서는 실제 A4 한 장처럼 보이도록 높이를 고정해두지만(.jilji 기본 규칙, height:165mm),
+     그 고정 높이가 실제 인쇄 가능 영역보다 아주 살짝만 넘쳐도 거의 빈 종이 한 장이 추가로
+     뽑히는 문제가 반복됐음(내용이 적을 때도, 좀 많을 때도) — 인쇄할 때는 높이를 내용에 맞게
+     자동으로 줄여서(min-height:0) 이 위험 자체를 없앰. 내용이 실제로 한 페이지보다 많을
+     때만(드묾) 정상적으로 다음 페이지로 이어짐.
+  */
+  .jilji{width:270mm;height:auto;min-height:0;margin:0 auto;page-break-inside:avoid;page-break-after:avoid}
   .jilji + .jilji{page-break-before:always}
-  @page{size:A4 landscape;margin:12mm}
+  /* "순천고등학교" 글자는 내용(교체 건수)이 많든 적든 항상 같은 자리에 나오도록, .jilji 박스
+     안이 아니라 인쇄 페이지 자체를 기준으로 고정합니다(페이지마다 반복 출력됨). */
+  .jilji .school{position:fixed;right:29mm;bottom:14mm}
+  @page{size:A4 landscape;margin:10mm}
 }
 
 /* ================================================================
