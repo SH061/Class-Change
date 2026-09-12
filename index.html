@@ -478,22 +478,27 @@ function isFree(n,d,p){return !cellOf(n,d,p)}
 // 확정된 수업교체/보강까지 반영한 "실제 지금" 시간표 — 옮겨간 자리는 비고, 옮겨온 자리는 채워짐
 function effectiveCell(name,d,p){
   const date=iso(dayDate(d));
+  // 한 사람이 같은 슬롯에 걸린 기록을 여러 개(예: 같은 반 방식 연쇄이동에서 B는 기록 2개) 가질 수 있어서
+  // 먼저 찾는 것을 바로 return하면 안 됨 — 전부 훑고 "채워짐"이 있으면 그게 최종 상태(비워짐보다 우선).
+  let vac=false,fill=null;
   for(const r of Store.all()){
     const a=r.absent,mk=r.makeup,cv=r.cover;
     // 신청자 결강 슬롯 — 비워짐 (swap/sub 공통)
-    if(r.applicant===name&&a.date===date&&a.period===p)return null;
+    if(r.applicant===name&&a.date===date&&a.period===p){vac=true;continue}
     // sub: 대신 맡는 교사 — 그 시간 채워짐 (결강 수업을 그대로 맡음)
-    if(r.type==='sub'&&cv&&cv.teacher===name&&a.date===date&&a.period===p)
-      return{grade:a.grade,cls:a.cls,subj:a.subject,label:a.grade+'-'+a.cls,elective:false,block:false,raw:''};
+    if(r.type==='sub'&&cv&&cv.teacher===name&&a.date===date&&a.period===p){
+      fill={grade:a.grade,cls:a.cls,subj:a.subject,label:a.grade+'-'+a.cls,elective:false,block:false,raw:''};continue}
     // swap: 신청자 — 새 자리 채워짐 (자기 반·과목 그대로)
-    if(r.type==='swap'&&r.applicant===name&&mk&&mk.date===date&&mk.period===p)
-      return{grade:a.grade,cls:a.cls,subj:a.subject,label:a.grade+'-'+a.cls,elective:false,block:false,raw:''};
+    if(r.type==='swap'&&r.applicant===name&&mk&&mk.date===date&&mk.period===p){
+      fill={grade:a.grade,cls:a.cls,subj:a.subject,label:a.grade+'-'+a.cls,elective:false,block:false,raw:''};continue}
     // swap: 상대 교사 — 원래 자리(내줌) 비워짐
-    if(r.type==='swap'&&cv&&cv.teacher===name&&mk&&mk.date===date&&mk.period===p)return null;
+    if(r.type==='swap'&&cv&&cv.teacher===name&&mk&&mk.date===date&&mk.period===p){vac=true;continue}
     // swap: 상대 교사 — 신청자의 원래 시간에 채워짐 (상대 자신의 반·과목 그대로)
-    if(r.type==='swap'&&cv&&cv.teacher===name&&a.date===date&&a.period===p)
-      return{grade:cv.grade||a.grade,cls:cv.cls||a.cls,subj:cv.subject,label:(cv.grade||a.grade)+'-'+(cv.cls||a.cls),elective:false,block:false,raw:''};
+    if(r.type==='swap'&&cv&&cv.teacher===name&&a.date===date&&a.period===p){
+      fill={grade:cv.grade||a.grade,cls:cv.cls||a.cls,subj:cv.subject,label:(cv.grade||a.grade)+'-'+(cv.cls||a.cls),elective:false,block:false,raw:''};continue}
   }
+  if(fill)return fill;
+  if(vac)return null;
   return cellOf(name,d,p);
 }
 function isFreeEff(n,d,p){const c=effectiveCell(n,d,p);return !c||c.block}
@@ -578,7 +583,36 @@ function movePartners(from,to,actor){
   out.sort((a,b)=>a.tier-b.tier||a.partner.localeCompare(b.partner,'ko'));
   return{options:out,myClass};
 }
-// 직접 1:1로는 안 될 때 — 교사 한 명(B)을 더 거치는 3자 순환 이동(연쇄 이동) 후보 찾기
+// [기본 방식] 같은 반을 나와 다른 시간에 담당하는 교사(B)가 있는데, B가 그 시간에 다른 반(Z) 수업이 있어서
+// 직접 교체가 안 될 때 — B의 그 다른 반(Z) 수업을 우리 두 자리(from/to) 중 비게 되는 쪽으로 옮기고,
+// 그 자리에 원래 있던 사람(C)을 B가 있던 자리로 옮겨서 푸는 방식. 실제 학교에서 가장 흔한 형태라
+// 아래 findChains(임의의 다른 반을 거치는 방식)보다 먼저 시도합니다.
+function findChainsSameClass(from,to,actor){
+  actor=actor||ME;
+  const my=effectiveCell(actor,from.d,from.p);
+  if(!my||my.block||my.elective)return[];
+  const myClass=my.grade+'-'+my.cls;
+  const results=[];
+  for(const B of M.teachers){
+    if(B.name===actor)continue;
+    const cB=effectiveCell(B.name,to.d,to.p);
+    if(!cB||cB.block||cB.elective)continue;
+    if((cB.grade+'-'+cB.cls)!==myClass)continue; // 나와 같은 반을 그 시간에 담당하는 교사만
+    if(isFreeEff(B.name,from.d,from.p))continue; // 직접 교체가 되면 이 방식은 필요 없음(중복 제외)
+    const Z=effectiveCell(B.name,from.d,from.p); // B가 그 시간에 원래 하던 다른 반 수업
+    if(!Z||Z.block||Z.elective)continue;
+    const clsZ=Z.grade+'-'+Z.cls;
+    const C=classTeacherAt(clsZ,to.d,to.p,[actor,B.name]); // Z반이 우리 반이 옮겨갈 시간에 이미 다른 사람 차 있는지
+    if(!C||C===actor)continue;
+    if(!isFreeEff(C,from.d,from.p))continue; // 그 사람이 B의 원래 자리로 올 수 있어야 함
+    if(classTeacherAt(clsZ,from.d,from.p,[B.name,C]))continue; // 최종 충돌 확인
+    const cC=effectiveCell(C,to.d,to.p);
+    results.push({B:B.name,cB,Z,clsZ,C,cC});
+    if(results.length>=8)return results;
+  }
+  return results;
+}
+// [예비 방식] 위 방법으로 안 될 때 — 교사 한 명(B)을 더 거치는 3자 순환 이동(연쇄 이동) 후보 찾기
 // 나(from→to) / B(to→S3) / C(S3→from) 세 사람이 서로 맞물려 도는 구조
 function findChains(from,to,actor){
   actor=actor||ME;
@@ -744,20 +778,25 @@ function navWeek(d){SELWEEK=Math.max(0,Math.min(WEEKS.length-1,SELWEEK+d));rende
 /* ===== 시간표 표 ===== */
 // 확정된 변경을 "비워짐(vac)/채워짐(fill)" 두 상태로만 표시 — 신청자·상대 동일 규칙
 function changeMarks(name){
-  const map={};
+  // 한 사람이 같은 슬롯에 걸린 신호를 여러 개 가질 수 있어서(같은 반 방식 연쇄이동의 B 등)
+  // 전부 모은 뒤 "채워짐"이 하나라도 있으면 그걸 최종으로 씀(비워짐보다 우선).
+  const raw={};
+  const push=(k,v)=>{(raw[k]=raw[k]||[]).push(v)};
   const dIdx=v=>{for(let i=0;i<5;i++)if(iso(dayDate(i))===v)return i;return -1};
   for(const r of Store.all()){
     const a=r.absent,mk=r.makeup,cv=r.cover;
     if(r.applicant!==name&&(!cv||cv.teacher!==name))continue;
     if(r.applicant===name){
-      const di=dIdx(a.date);if(di>=0)map[di+'-'+a.period]={k:'vac'};
-      if(r.type==='swap'&&mk&&mk.date){const mi=dIdx(mk.date);if(mi>=0)map[mi+'-'+mk.period]={k:'fill'};}
+      const di=dIdx(a.date);if(di>=0)push(di+'-'+a.period,{k:'vac'});
+      if(r.type==='swap'&&mk&&mk.date){const mi=dIdx(mk.date);if(mi>=0)push(mi+'-'+mk.period,{k:'fill'});}
     }
     if(cv&&cv.teacher===name){
-      const di=dIdx(a.date);if(di>=0)map[di+'-'+a.period]={k:'fill'};
-      if(r.type==='swap'&&mk&&mk.date){const mi=dIdx(mk.date);if(mi>=0)map[mi+'-'+mk.period]={k:'vac'};}
+      const di=dIdx(a.date);if(di>=0)push(di+'-'+a.period,{k:'fill'});
+      if(r.type==='swap'&&mk&&mk.date){const mi=dIdx(mk.date);if(mi>=0)push(mi+'-'+mk.period,{k:'vac'});}
     }
   }
+  const map={};
+  for(const k in raw){map[k]=raw[k].find(x=>x.k==='fill')||raw[k][0];}
   return map;
 }
 function lbl(mk){if(!mk||!mk.date)return'';return md(dparse(mk.date))+' '+mk.period+'교시'}
@@ -921,7 +960,7 @@ function renderClassTTInit(selId,wrapId){
 }
 
 /* ===== 수업교체 (2분할 + 미리보기) ===== */
-let DRAG=null,PICK=null,SWFROM=null,SWTO=null,SWPART=null,CHAINS=[],CHAINSEL=null,SWACTOR=null;
+let DRAG=null,PICK=null,SWFROM=null,SWTO=null,SWPART=null,CHAINS=[],CHAINSEL=null,CHAINS2=[],CHAIN2SEL=null,SWACTOR=null;
 // 수업교체 탭에서 "누구의" 시간표를 다루는지 — 기본은 로그인한 나, 필요하면 다른 교사로 전환
 function setSwActor(name){
   SWACTOR=name;PICK=DRAG=SWFROM=SWTO=SWPART=CHAINSEL=null;CHAINS=[];
@@ -1013,12 +1052,21 @@ function doMove(from,to){
     ' → '+DAYNAMES[to.d]+'('+md(dayDate(to.d))+') '+to.p+'교시로 이동</div>';
   if(res.err){box.innerHTML=h+'<p class="err" style="margin-top:10px">'+res.err+'</p>';return}
   if(!res.options.length){
+    CHAINS2=findChainsSameClass(from,to,SWACTOR);CHAIN2SEL=null;
     CHAINS=findChains(from,to,SWACTOR);CHAINSEL=null;
-    if(!CHAINS.length){box.innerHTML=h+'<p class="err" style="margin-top:10px">불가능 — 직접 교체도, 교사 한 명을 더 거쳐도(연쇄 이동) 자리가 나지 않습니다.</p>';return}
-    h+='<p class="muted" style="margin:10px 0 0">직접 맞바꿀 교사는 없지만, <b>교사 한 명을 더 거치면(연쇄 이동)</b> 가능한 조합이 '+CHAINS.length+'개 있습니다.</p>';
-    h+=CHAINS.map((c,i)=>'<div class="opt"><span class="lead">'+c.B+'</span><span class="muted">→</span><span class="lead">'+c.C+'</span>'+
-      '<span class="muted">'+DAYNAMES[c.S3.d]+' '+c.S3.p+'교시 '+c.cC.label+'('+(subjFull(c.C,c.cC)||'-')+') 경유</span>'+
-      '<span class="sp"></span><button class="btn sm ghost" onclick="pickChain('+i+')">미리보기</button></div>').join('');
+    if(!CHAINS2.length&&!CHAINS.length){box.innerHTML=h+'<p class="err" style="margin-top:10px">불가능 — 직접 교체도, 연쇄 이동도 자리가 나지 않습니다.</p>';return}
+    if(CHAINS2.length){
+      h+='<p class="muted" style="margin:10px 0 0">직접 맞바꿀 교사는 없지만, <b>같은 반을 맡은 교사를 통한 연쇄 이동</b>이 '+CHAINS2.length+'개 있습니다.</p>';
+      h+=CHAINS2.map((c,i)=>'<div class="opt"><span class="lead">'+c.B+'</span><span class="muted">↔</span><span class="lead">'+c.C+'</span>'+
+        '<span class="muted">('+c.clsZ+' 반 '+(subjFull(c.B,c.Z)||'-')+' 을(를) '+DAYNAMES[to.d]+' '+to.p+'교시로 옮기고, '+c.C+' 선생님이 그 자리로)</span>'+
+        '<span class="sp"></span><button class="btn sm ghost" onclick="pickChain2('+i+')">미리보기</button></div>').join('');
+    }
+    if(CHAINS.length){
+      h+='<div class="hr"></div><p class="muted" style="margin:0 0 6px">그 외에, <b>다른 반을 거치는 연쇄 이동</b>도 '+CHAINS.length+'개 있습니다.</p>';
+      h+=CHAINS.map((c,i)=>'<div class="opt"><span class="lead">'+c.B+'</span><span class="muted">→</span><span class="lead">'+c.C+'</span>'+
+        '<span class="muted">'+DAYNAMES[c.S3.d]+' '+c.S3.p+'교시 '+c.cC.label+'('+(subjFull(c.C,c.cC)||'-')+') 경유</span>'+
+        '<span class="sp"></span><button class="btn sm ghost" onclick="pickChain('+i+')">미리보기</button></div>').join('');
+    }
     box.innerHTML=h;return;
   }
   h+='<p class="muted" style="margin:10px 0 0">이 이동이 가능한 교사 총 '+res.options.length+'명 — 우선순위 순서로 표시됩니다.</p>';
@@ -1082,6 +1130,31 @@ function renderChainPreview(){
   h+='<button class="btn" style="margin-top:10px" onclick="confirmChain()">이 조합으로 3명 모두 교체 확정</button>';
   document.getElementById('swResult').innerHTML=h;
 }
+function pickChain2(i){CHAIN2SEL=CHAINS2[i];renderChain2Preview()}
+function renderChain2Preview(){
+  const from=SWFROM,to=SWTO,ch=CHAIN2SEL,my=effectiveCell(SWACTOR,from.d,from.p);
+  // 나: from 비워짐 → to 채워짐(내 반)
+  const markA={};markA[from.d+'-'+from.p]={k:'vac'};
+  markA[to.d+'-'+to.p]={k:'fill',cell:{grade:my.grade,cls:my.cls,label:my.label,subj:my.subj||subjFull(SWACTOR,my)}};
+  // B: 두 자리 모두 채워진 채로 내용만 바뀜(내 반 ↔ Z반)
+  const markB={};
+  markB[from.d+'-'+from.p]={k:'fill',cell:{grade:ch.cB.grade,cls:ch.cB.cls,label:ch.cB.label,subj:ch.cB.subj||subjFull(ch.B,ch.cB)}};
+  markB[to.d+'-'+to.p]={k:'fill',cell:{grade:ch.Z.grade,cls:ch.Z.cls,label:ch.Z.label,subj:ch.Z.subj||subjFull(ch.B,ch.Z)}};
+  // C: to 비워짐 → from 채워짐(Z반)
+  const markC={};markC[to.d+'-'+to.p]={k:'vac'};
+  markC[from.d+'-'+from.p]={k:'fill',cell:{grade:ch.Z.grade,cls:ch.Z.cls,label:ch.Z.label,subj:ch.cC.subj||subjFull(ch.C,ch.cC)}};
+  document.getElementById('swGrid').innerHTML=ttTable(SWACTOR,{marks:markA});
+  let h='<button class="btn sm ghost" onclick="doMove(SWFROM,SWTO)">← 목록으로</button>';
+  h+='<p class="muted" style="margin:10px 0">'+SWACTOR+' ↔ '+ch.B+' 은 <b>'+my.label+'</b> 반을, '+ch.B+' ↔ '+ch.C+' 은 <b>'+ch.clsZ+'</b> 반을 서로 맞바꿉니다.</p>';
+  h+='<div class="legend" style="margin-bottom:10px"><span><i style="background:var(--yellow)"></i>이전 수업 (비워짐)</span><span><i style="background:var(--mint)"></i>수정된 수업 (채워짐/내용 변경)</span></div>';
+  h+='<div class="chainrow">';
+  h+='<div class="chaincol"><h3>'+SWACTOR+(SWACTOR===ME?' (나)':'')+'</h3>'+ttTable(SWACTOR,{marks:markA})+'</div>';
+  h+='<div class="chaincol"><h3>'+ch.B+'</h3>'+ttTable(ch.B,{marks:markB})+'</div>';
+  h+='<div class="chaincol"><h3>'+ch.C+'</h3>'+ttTable(ch.C,{marks:markC})+'</div>';
+  h+='</div>';
+  h+='<button class="btn" style="margin-top:10px" onclick="confirmChain2()">이 조합으로 3명 모두 교체 확정</button>';
+  document.getElementById('swResult').innerHTML=h;
+}
 
 /* ===== 확정 ===== */
 function openModal(title,body,onOk){document.getElementById('mTitle').textContent=title;
@@ -1125,6 +1198,35 @@ function confirmChain(){
       done();
     });
 }
+function confirmChain2(){
+  const from=SWFROM,to=SWTO,ch=CHAIN2SEL,my=effectiveCell(SWACTOR,from.d,from.p);
+  openModal('연쇄 이동 확정 (같은 반 방식, 교사 3명)',
+    '<p class="muted">'+SWACTOR+' ↔ '+ch.B+' ('+my.label+' 반) · '+ch.B+' ↔ '+ch.C+' ('+ch.clsZ+' 반) — 3명 모두의 수업교체일지가 각자 생성됩니다.</p>'+
+    reasonFields(),
+    ()=>{
+      const reason=val('mReason'),writeDate=val('mWrite');
+      const dFrom=iso(dayDate(from.d)),dTo=iso(dayDate(to.d));
+      // 나 ↔ B (내 반)
+      Store.add({type:'swap',applicant:SWACTOR,reason,writeDate,
+        absent:{date:dFrom,grade:my.grade,cls:my.cls,period:from.p,subject:subjFull(SWACTOR,my)},
+        cover:{teacher:ch.B,subject:subjFull(ch.B,ch.cB),grade:ch.cB.grade,cls:ch.cB.cls},
+        makeup:{date:dTo,period:to.p}});
+      Store.add({type:'swap',applicant:ch.B,reason,writeDate,
+        absent:{date:dTo,grade:ch.cB.grade,cls:ch.cB.cls,period:to.p,subject:subjFull(ch.B,ch.cB)},
+        cover:{teacher:SWACTOR,subject:subjFull(SWACTOR,my),grade:my.grade,cls:my.cls},
+        makeup:{date:dFrom,period:from.p}});
+      // B ↔ C (Z반) — B는 자기 두 시간이 서로 바뀌는 것이라 별도 신청건으로 하나 더 생성됨
+      Store.add({type:'swap',applicant:ch.B,reason,writeDate,
+        absent:{date:dFrom,grade:ch.Z.grade,cls:ch.Z.cls,period:from.p,subject:subjFull(ch.B,ch.Z)},
+        cover:{teacher:ch.C,subject:subjFull(ch.C,ch.cC),grade:ch.cC.grade,cls:ch.cC.cls},
+        makeup:{date:dTo,period:to.p}});
+      Store.add({type:'swap',applicant:ch.C,reason,writeDate,
+        absent:{date:dTo,grade:ch.cC.grade,cls:ch.cC.cls,period:to.p,subject:subjFull(ch.C,ch.cC)},
+        cover:{teacher:ch.B,subject:subjFull(ch.B,ch.Z),grade:ch.Z.grade,cls:ch.Z.cls},
+        makeup:{date:dFrom,period:from.p}});
+      done();
+    });
+}
 function confirmSub(name,same,d,p){
   const my=effectiveCell(SWACTOR,d,p);
   openModal((same?'동교과 ':'')+'보강 확정',
@@ -1138,7 +1240,7 @@ function confirmSub(name,same,d,p){
       absent:{date:val('mAbs'),grade:my.grade,cls:my.cls,period:p,subject:subjFull(SWACTOR,my)},
       cover:{teacher:name,subject:val('mCoverSubj')},makeup:{date:val('mMk'),period:val('mMkP')}});done()});
 }
-function done(){PICK=DRAG=SWFROM=SWTO=SWPART=CHAINSEL=null;CHAINS=[];renderAll();
+function done(){PICK=DRAG=SWFROM=SWTO=SWPART=CHAINSEL=CHAIN2SEL=null;CHAINS=[];CHAINS2=[];renderAll();
   document.getElementById('swResult').innerHTML='<div class="notice">변경이 저장되었습니다. 시간표 색과 아래 목록에서 확인하세요.</div>';}
 
 /* ===== 확정 목록 ===== */
