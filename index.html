@@ -1230,7 +1230,19 @@ async function flushSwapSync(){
   if(!ACTIVE_APPS_URL||!PENDING_SWAP_SYNC.length)return;
   const batch=PENDING_SWAP_SYNC.splice(0,PENDING_SWAP_SYNC.length);
   try{const res=await postAppsScript(ACTIVE_APPS_URL,{action:'addSwapBatch',entries:batch,editor:ME});
-    if(!res.error){applyRemoteSync(res);renderAll()}}
+    if(!res.error){
+      // 관리 대상(구글시트 "설정"의 수업교체대상)이 아닌 사람의 교체는 서버가 조용히
+      // 걸러내므로 응답에 안 실려서 옴 — 그런 기록은 local:true로 표시해서, 서버 목록으로
+      // 통째로 덮어써도 이 브라우저에서는 계속 보이게(사라지지 않게) 함.
+      const serverIds=new Set((res.swaps||[]).map(s=>s.id));
+      const rejected=batch.filter(r=>!serverIds.has(r.id));
+      if(rejected.length){
+        const cur=Store.all();
+        rejected.forEach(r=>{const hit=cur.find(x=>x.id===r.id);if(hit)hit.local=true});
+        Store._s(cur);
+      }
+      applyRemoteSync(res);renderAll();
+    }}
   catch(e){/* 오프라인 등: 다음 저장 때 다시 시도되지 않으므로, 실패해도 로컬 기록은 남아있음 */}
 }
 async function flushSwapDelete(grp,id){
@@ -1281,9 +1293,13 @@ function applyRemoteSync(j){
   if(Array.isArray(j.notices))Notices._s(j.notices);
   if(Array.isArray(j.homerooms))REMOTE_HOMEROOMS=j.homerooms;
   if(j.weeks>0){setForm(Object.assign({},getForm(),{weeks:j.weeks}));computeWeeks()}
-  // 수업교체/보강 확정 기록 — 구글시트가 진실의 원천. 서버 응답으로 통째로 교체해서
-  // 다른 선생님이 확정한 것도 반별 시간표 등 모든 화면에 그대로 보이게 함.
-  if(Array.isArray(j.swaps))Store._s(j.swaps);
+  // 수업교체/보강 확정 기록 — 구글시트가 진실의 원천이지만, 관리 대상이 아니라 서버가
+  // 안 받아준(local:true) 기록은 이 브라우저에서 계속 보이게 그대로 남겨서 합침.
+  // (안 그러면 이 목록으로 통째로 덮어쓸 때 방금 만든 내 기록이 몇 초 뒤 사라져 보임.)
+  if(Array.isArray(j.swaps)){
+    const localOnly=Store.all().filter(r=>r.local&&!j.swaps.some(s=>s.id===r.id));
+    Store._s([...j.swaps,...localOnly]);
+  }
 }
 async function postAppsScript(url,body){
   const r=await fetch(url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(body)});
@@ -1582,6 +1598,7 @@ function resetCalForm(){
   document.getElementById('calLast').value='';document.getElementById('calPeriods').value='';document.getElementById('calTitle').value='';document.getElementById('calBody').value='';
   document.getElementById('calNoClass').checked=false;[1,2,3].forEach(g=>document.getElementById('calG'+g).checked=false);
 }
+// addNotice와 같은 이유로 낙관적 업데이트: 먼저 이 화면에 반영하고, 서버 저장은 뒤에서 진행.
 async function addCal(){
   if(!isHomeroom())return;
   const date=val('calStart');const end=val('calEnd')||date;
@@ -1591,36 +1608,38 @@ async function addCal(){
   const periods=val('calPeriods').split(',').map(x=>+x.trim()).filter(Boolean);
   const entry={date,end,type:val('calCategory'),last:+val('calLast')||undefined,title,grades,periods,
     noClass:document.getElementById('calNoClass').checked,body:val('calBody').trim()};
-  const editing=!!CAL_EDIT_ID;
-  if(ACTIVE_APPS_URL){
-    try{const res=await postAppsScript(ACTIVE_APPS_URL,editing?{action:'updateAcademic',id:CAL_EDIT_ID,entry,editor:ME}:{action:'addAcademic',entry,editor:ME});
-      if(res.error){alert('저장 실패: '+res.error);return}
-      applyRemoteSync(res);
-    }catch(err){alert('저장 실패: '+err.message);return}
-  }else{
-    const a=getAcademic();
-    if(editing){const idx=a.findIndex(x=>x.id===CAL_EDIT_ID);if(idx>=0)a[idx]=Object.assign({},a[idx],entry);}
-    else{entry.id='a'+Date.now()+Math.random().toString(36).slice(2,5);a.push(entry);}
-    setAcademic(a);
-  }
+  const editing=!!CAL_EDIT_ID,editId=CAL_EDIT_ID;
+  const before=getAcademic();
+  const a=getAcademic();
+  if(editing){const idx=a.findIndex(x=>x.id===editId);if(idx>=0)a[idx]=Object.assign({},a[idx],entry);}
+  else{entry.id='a'+Date.now()+Math.random().toString(36).slice(2,5);a.push(entry);}
+  setAcademic(a);
   CAL_EDIT_ID=null;
   document.getElementById('calFormHint').textContent='+ 새 학사일정 추가 (1학년 담임 전용)';
   document.getElementById('calSubmitBtn').textContent='등록';
   document.getElementById('calCancelEditBtn').hidden=true;
   resetCalForm();
   renderCalModal();renderCalWeekSummary();renderMgr();
+  if(ACTIVE_APPS_URL){
+    try{const res=await postAppsScript(ACTIVE_APPS_URL,editing?{action:'updateAcademic',id:editId,entry,editor:ME}:{action:'addAcademic',entry,editor:ME});
+      if(res.error){alert('저장 실패(방금 입력한 내용은 되돌립니다): '+res.error);setAcademic(before);renderCalModal();renderCalWeekSummary();renderMgr();return}
+      applyRemoteSync(res);renderCalModal();renderCalWeekSummary();renderMgr();
+    }catch(err){alert('저장 실패했지만 이 화면에는 남겨둡니다(새로고침하면 사라질 수 있음): '+err.message);}
+  }
 }
 async function delCalConfirm(i){
   if(!isHomeroom())return;
   const e=getAcademic()[i];if(!e)return;
   if(!confirm('이 학사일정을 삭제할까요?'))return;
+  const before=getAcademic();
+  const a=getAcademic();a.splice(i,1);setAcademic(a);
+  renderCalModal();renderCalWeekSummary();renderMgr();
   if(ACTIVE_APPS_URL&&e.id){
     try{const res=await postAppsScript(ACTIVE_APPS_URL,{action:'deleteAcademic',id:e.id,editor:ME});
-      if(res.error){alert('삭제 실패: '+res.error);return}
-      applyRemoteSync(res);
-    }catch(err){alert('삭제 실패: '+err.message);return}
-  }else{const a=getAcademic();a.splice(i,1);setAcademic(a);}
-  renderCalModal();renderCalWeekSummary();renderMgr();
+      if(res.error){alert('삭제 실패(되돌립니다): '+res.error);setAcademic(before);renderCalModal();renderCalWeekSummary();renderMgr();return}
+      applyRemoteSync(res);renderCalModal();renderCalWeekSummary();renderMgr();
+    }catch(err){alert('삭제 실패했지만 이 화면에서는 지운 채로 둡니다(새로고침하면 되살아날 수 있음): '+err.message);}
+  }
 }
 
 /* --- 학교 및 학년 안내 요약 카드 + 확대 모달 --- */
@@ -1684,49 +1703,57 @@ function cancelNoticeEdit(){
   document.getElementById('noticeSubmitBtn').textContent='등록';
   document.getElementById('noticeCancelEditBtn').hidden=true;
 }
+// 세 함수 모두 "낙관적 업데이트" 방식: 서버 응답을 기다리지 않고 이 화면에 먼저 반영해서
+// 누르자마자 바뀐 게 보이게 하고(렉처럼 느껴지지 않게), 서버 저장은 뒤에서 조용히 진행합니다.
+// 실패하면 그때 알리고 되돌립니다 — 흔한 성공 케이스에서 기다릴 필요가 없어집니다.
 async function addNotice(){
   if(!isHomeroom())return;
   const t=val('newTitle').trim(),b=val('newBody').trim(),dept=NOTICE_CAT==='school'?val('newDept').trim():'';
   if(!t){alert('제목을 입력하세요.');return}
-  const editing=!!NOTICE_EDIT_ID;
+  const editing=!!NOTICE_EDIT_ID,editId=NOTICE_EDIT_ID;
   const entry={title:t,body:b,category:NOTICE_CAT,dept};
-  if(ACTIVE_APPS_URL){
-    try{const res=await postAppsScript(ACTIVE_APPS_URL,editing?{action:'updateNotice',id:NOTICE_EDIT_ID,entry,editor:ME}:{action:'addNotice',entry,editor:ME});
-      if(res.error){alert('저장 실패: '+res.error);return}
-      applyRemoteSync(res);
-    }catch(err){alert('저장 실패: '+err.message);return}
-  }else if(editing){
-    const a=Notices.all();const idx=a.findIndex(x=>x.id===NOTICE_EDIT_ID);
+  const before=Notices.all(); // 실패 시 되돌리기용 스냅샷
+  if(editing){
+    const a=Notices.all();const idx=a.findIndex(x=>x.id===editId);
     if(idx>=0)Object.assign(a[idx],entry);
     Notices._s(a);
   }else{Notices.add(Object.assign({done:false},entry));}
   cancelNoticeEdit();
   renderNoticeModalList();renderNoticeSummary();
+  if(ACTIVE_APPS_URL){
+    try{const res=await postAppsScript(ACTIVE_APPS_URL,editing?{action:'updateNotice',id:editId,entry,editor:ME}:{action:'addNotice',entry,editor:ME});
+      if(res.error){alert('저장 실패(방금 입력한 내용은 되돌립니다): '+res.error);Notices._s(before);renderNoticeModalList();renderNoticeSummary();return}
+      applyRemoteSync(res);
+    }catch(err){alert('저장 실패했지만 이 화면에는 남겨둡니다(새로고침하면 사라질 수 있음): '+err.message);return}
+  }
+  renderNoticeModalList();renderNoticeSummary();
 }
 async function delNoticeConfirm(id){
   if(!isHomeroom())return;
   if(!confirm('이 안내를 삭제할까요?'))return;
+  const before=Notices.all();
+  Notices.remove(id);
+  renderNoticeModalList();renderNoticeSummary();
   if(ACTIVE_APPS_URL){
     try{const res=await postAppsScript(ACTIVE_APPS_URL,{action:'deleteNotice',id,editor:ME});
-      if(res.error){alert('삭제 실패: '+res.error);return}
-      applyRemoteSync(res);
-    }catch(err){alert('삭제 실패: '+err.message);return}
-  }else{Notices.remove(id);}
-  renderNoticeModalList();renderNoticeSummary();
+      if(res.error){alert('삭제 실패(되돌립니다): '+res.error);Notices._s(before);renderNoticeModalList();renderNoticeSummary();return}
+      applyRemoteSync(res);renderNoticeModalList();renderNoticeSummary();
+    }catch(err){alert('삭제 실패했지만 이 화면에서는 지운 채로 둡니다(새로고침하면 되살아날 수 있음): '+err.message);}
+  }
 }
 // 완료 체크박스 — 삭제가 아니라 상태만 바꿔서, 나중에도 "완료사항" 탭에서 확인할 수 있게 함.
 async function toggleNoticeDone(id,done){
   if(!isHomeroom())return;
+  const before=Notices.all();
+  const a=Notices.all();const idx=a.findIndex(x=>x.id===id);
+  if(idx>=0){a[idx].done=done;Notices._s(a);}
+  renderNoticeModalList();renderNoticeSummary();
   if(ACTIVE_APPS_URL){
     try{const res=await postAppsScript(ACTIVE_APPS_URL,{action:'updateNotice',id,entry:{done},editor:ME});
-      if(res.error){alert('저장 실패: '+res.error);renderNoticeModalList();return}
-      applyRemoteSync(res);
-    }catch(err){alert('저장 실패: '+err.message);renderNoticeModalList();return}
-  }else{
-    const a=Notices.all();const idx=a.findIndex(x=>x.id===id);
-    if(idx>=0){a[idx].done=done;Notices._s(a);}
+      if(res.error){alert('저장 실패(되돌립니다): '+res.error);Notices._s(before);renderNoticeModalList();renderNoticeSummary();return}
+      applyRemoteSync(res);renderNoticeModalList();renderNoticeSummary();
+    }catch(err){/* 오프라인 등 — 이 화면엔 이미 반영돼 있으니 그대로 둠 */}
   }
-  renderNoticeModalList();renderNoticeSummary();
 }
 
 /* --- 수업일수 확인: 자체 달력 팝업으로 날짜 선택 --- */
