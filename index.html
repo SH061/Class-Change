@@ -628,13 +628,14 @@ table.grid-ed input,table.grid-ed select{width:100%;padding:5px 6px}
         <div id="calGrid"></div>
         <div id="calDetail" class="calDetailBox" hidden></div>
         <div class="addForm" id="calAddForm" hidden>
-          <div class="hint">+ 새 학사일정 추가 (1학년 담임 전용)</div>
+          <div class="hint" id="calFormHint">+ 새 학사일정 추가 (1학년 담임 전용)</div>
           <div style="display:flex;gap:6px">
             <input id="calStart" type="date" style="flex:1">
             <input id="calEnd" type="date" style="flex:1" placeholder="종료일(같으면 비워둠)">
           </div>
           <select id="calCategory" style="margin-top:8px"></select>
           <input id="calLast" type="number" min="1" max="7" placeholder="단축수업이면 마지막 교시(예: 4)" style="margin-top:8px">
+          <input id="calPeriods" placeholder="특정 교시만 수업 불가(예: 영어듣기평가 3교시 → 3, 콤마로 여러 개)" style="margin-top:8px">
           <input id="calTitle" placeholder="제목 (예: 1차 지필시험, 수학여행)" style="margin-top:8px">
           <div style="display:flex;gap:10px;margin-top:8px;font-size:12.5px;color:var(--muted)">
             대상 학년: <label><input type="checkbox" id="calG1" style="width:auto"> 1학년</label>
@@ -646,7 +647,10 @@ table.grid-ed input,table.grid-ed select{width:100%;padding:5px 6px}
             <input type="checkbox" id="calNoClass" style="width:auto"> 이 날은 정상 수업이 없음(수업교체 대상에서 자동 제외)
           </label>
           <textarea id="calBody" placeholder="내용 (선택 — 안 써도 됨)" style="margin-top:8px"></textarea>
-          <button class="btn sm" onclick="addCal()">등록</button>
+          <div class="row" style="margin-top:8px;gap:8px">
+            <button class="btn sm" id="calSubmitBtn" onclick="addCal()">등록</button>
+            <button class="btn sm ghost" id="calCancelEditBtn" onclick="cancelCalEdit()" hidden>수정 취소</button>
+          </div>
         </div>
       </div>
     </div>
@@ -659,10 +663,13 @@ table.grid-ed input,table.grid-ed select{width:100%;padding:5px 6px}
         <p class="muted" style="margin:0 0 4px" id="noticePermMsg"></p>
         <div id="noticeList"></div>
         <div class="addForm" id="noticeAddForm" hidden>
-          <div class="hint">+ 새 안내 추가 (1학년 담임 전용)</div>
+          <div class="hint" id="noticeFormHint">+ 새 안내 추가 (1학년 담임 전용)</div>
           <input id="newTitle" placeholder="제목 (목록에는 제목만 보입니다)">
           <textarea id="newBody" placeholder="내용"></textarea>
-          <button class="btn sm" onclick="addNotice()">등록</button>
+          <div class="row" style="margin-top:8px;gap:8px">
+            <button class="btn sm" id="noticeSubmitBtn" onclick="addNotice()">등록</button>
+            <button class="btn sm ghost" id="noticeCancelEditBtn" onclick="cancelNoticeEdit()" hidden>수정 취소</button>
+          </div>
         </div>
       </div>
     </div>
@@ -1072,6 +1079,7 @@ function normAc(a){
   a=Object.assign({},a);
   a.end=a.end||a.date;
   a.grades=a.grades||[];
+  a.periods=a.periods||[];
   if(a.noClass===undefined)a.noClass=(a.type==='휴업일'||a.type==='휴일');
   return a;
 }
@@ -1088,6 +1096,12 @@ function acFor(isoDate){
   return null;
 }
 function dayBlocked(i){return acFor(iso(dayDate(i)))}
+// 하루 전체가 아니라 특정 교시만 막는 일정(예: 영어듣기평가 3교시) — {period: 표시할 제목} 형태로 반환
+function acPeriodBlocks(isoDate){
+  const map={};
+  acForRange(isoDate).forEach(x=>{(x.periods||[]).forEach(p=>{map[p]=x.title||x.type})});
+  return map;
+}
 
 /* ===== 변경내역 저장소 (localStorage → 추후 Apps Script) ===== */
 const Store={
@@ -1259,6 +1273,8 @@ function ttTable(name,opts){
       const blk=dayBlocked(d),cls=['slot'];let inner='';
       if(blk&&(blk.type!=='단축'||p>(blk.last||7))){
         h+='<td class="slot holiday"><span class="blk">'+(blk.type==='단축'?'단축':blk.type)+'</span></td>';continue;}
+      const pblk=acPeriodBlocks(iso(dayDate(d)))[p];
+      if(pblk){h+='<td class="slot holiday"><span class="blk">'+pblk+'</span></td>';continue;}
       const rawC=opts.effective?effectiveCell(name,d,p):t.cells[d][p];
       const k=mk[d+'-'+p];
       // 비워짐(vac)=항상 빈칸, 채워짐(fill)=지정된 내용(없으면 원자료) — 신청자·상대 동일 규칙
@@ -1395,14 +1411,46 @@ function renderCalModal(){
   document.getElementById('calDetail').hidden=true;
   document.getElementById('calAddForm').hidden=!isHomeroom();
 }
+let CAL_EDIT_ID=null;
 function showCalDetail(i){
   const e=getAcademic()[i];if(!e)return;
   document.getElementById('calDetail').innerHTML=
     '<h4>'+fmtAcRange(e)+' · <span class="tag" style="background:'+AC_CATCOLOR[e.type]+'">'+e.type+'</span> '+(e.title||'')+acGradeBadge(e)+
-    (e.noClass?' <span class="muted" style="font-size:11px">· 수업 없음</span>':'')+'</h4>'+
+    (e.noClass?' <span class="muted" style="font-size:11px">· 수업 없음</span>':'')+
+    (e.periods&&e.periods.length?' <span class="muted" style="font-size:11px">· '+e.periods.join(',')+'교시 수업 불가</span>':'')+'</h4>'+
     (e.body?'<div class="body">'+e.body+'</div>':'<p class="muted" style="margin:4px 0 0">등록된 세부 내용이 없습니다.</p>')+
-    (isHomeroom()?'<button class="btn sm ghost" style="margin-top:8px" onclick="delCalConfirm('+i+')">삭제</button>':'');
+    (isHomeroom()?'<div class="row" style="margin-top:8px;gap:8px"><button class="btn sm ghost" onclick="startCalEdit('+i+')">수정</button><button class="btn sm ghost" onclick="delCalConfirm('+i+')">삭제</button></div>':'');
   document.getElementById('calDetail').hidden=false;
+}
+// 기존 일정을 클릭해서 그대로 폼에 불러와 고칠 수 있게 함 — 저장하면 앱스크립트로 업데이트되어 다른 사람 화면에도 반영됨
+function startCalEdit(i){
+  const e=getAcademic()[i];if(!e||!isHomeroom())return;
+  CAL_EDIT_ID=e.id||null;
+  val('calStart')!==undefined&&(document.getElementById('calStart').value=e.date);
+  document.getElementById('calEnd').value=(e.end&&e.end!==e.date)?e.end:'';
+  document.getElementById('calCategory').value=e.type;
+  document.getElementById('calLast').value=e.last||'';
+  document.getElementById('calPeriods').value=(e.periods||[]).join(',');
+  document.getElementById('calTitle').value=e.title||'';
+  [1,2,3].forEach(g=>document.getElementById('calG'+g).checked=(e.grades||[]).includes(g));
+  document.getElementById('calNoClass').checked=!!e.noClass;
+  document.getElementById('calBody').value=e.body||'';
+  document.getElementById('calFormHint').textContent='✎ 학사일정 수정 중 (1학년 담임 전용)';
+  document.getElementById('calSubmitBtn').textContent='수정 저장';
+  document.getElementById('calCancelEditBtn').hidden=false;
+  document.getElementById('calAddForm').scrollIntoView({block:'nearest'});
+}
+function cancelCalEdit(){
+  CAL_EDIT_ID=null;
+  document.getElementById('calFormHint').textContent='+ 새 학사일정 추가 (1학년 담임 전용)';
+  document.getElementById('calSubmitBtn').textContent='등록';
+  document.getElementById('calCancelEditBtn').hidden=true;
+  resetCalForm();
+}
+function resetCalForm(){
+  document.getElementById('calStart').value='';document.getElementById('calEnd').value='';
+  document.getElementById('calLast').value='';document.getElementById('calPeriods').value='';document.getElementById('calTitle').value='';document.getElementById('calBody').value='';
+  document.getElementById('calNoClass').checked=false;[1,2,3].forEach(g=>document.getElementById('calG'+g).checked=false);
 }
 async function addCal(){
   if(!isHomeroom())return;
@@ -1410,17 +1458,26 @@ async function addCal(){
   const title=val('calTitle').trim();
   if(!date){alert('날짜를 선택하세요.');return}
   const grades=[1,2,3].filter(g=>document.getElementById('calG'+g).checked);
-  const entry={date,end,type:val('calCategory'),last:+val('calLast')||undefined,title,grades,
+  const periods=val('calPeriods').split(',').map(x=>+x.trim()).filter(Boolean);
+  const entry={date,end,type:val('calCategory'),last:+val('calLast')||undefined,title,grades,periods,
     noClass:document.getElementById('calNoClass').checked,body:val('calBody').trim()};
+  const editing=!!CAL_EDIT_ID;
   if(ACTIVE_APPS_URL){
-    try{const res=await postAppsScript(ACTIVE_APPS_URL,{action:'addAcademic',entry,editor:ME});
+    try{const res=await postAppsScript(ACTIVE_APPS_URL,editing?{action:'updateAcademic',id:CAL_EDIT_ID,entry,editor:ME}:{action:'addAcademic',entry,editor:ME});
       if(res.error){alert('저장 실패: '+res.error);return}
       applyRemoteSync(res);
     }catch(err){alert('저장 실패: '+err.message);return}
-  }else{const a=getAcademic();a.push(entry);setAcademic(a);}
-  document.getElementById('calStart').value='';document.getElementById('calEnd').value='';
-  document.getElementById('calLast').value='';document.getElementById('calTitle').value='';document.getElementById('calBody').value='';
-  document.getElementById('calNoClass').checked=false;[1,2,3].forEach(g=>document.getElementById('calG'+g).checked=false);
+  }else{
+    const a=getAcademic();
+    if(editing){const idx=a.findIndex(x=>x.id===CAL_EDIT_ID);if(idx>=0)a[idx]=Object.assign({},a[idx],entry);}
+    else{entry.id='a'+Date.now()+Math.random().toString(36).slice(2,5);a.push(entry);}
+    setAcademic(a);
+  }
+  CAL_EDIT_ID=null;
+  document.getElementById('calFormHint').textContent='+ 새 학사일정 추가 (1학년 담임 전용)';
+  document.getElementById('calSubmitBtn').textContent='등록';
+  document.getElementById('calCancelEditBtn').hidden=true;
+  resetCalForm();
   renderCalModal();renderCalWeekSummary();renderMgr();
 }
 async function delCalConfirm(i){
@@ -1451,20 +1508,48 @@ function renderNoticeModalList(){
   document.getElementById('noticeList').innerHTML=list.length?list.map((n,i)=>
     '<div class="noticeItem"><h4><span class="num">'+(i+1)+'</span>'+n.title+'</h4>'+
     (n.body?'<div class="body">'+n.body+'</div>':'')+
-    '<div class="meta">'+n.writer+' 선생님 · '+md(dparse(n.date))+(isHomeroom()?' <button class="btn sm ghost" style="margin-left:8px" onclick="delNoticeConfirm(\''+n.id+'\')">삭제</button>':'')+'</div></div>'
+    '<div class="meta">'+n.writer+' 선생님 · '+md(dparse(n.date))+
+    (isHomeroom()?' <button class="btn sm ghost" style="margin-left:8px" onclick="startNoticeEdit(\''+n.id+'\')">수정</button> <button class="btn sm ghost" onclick="delNoticeConfirm(\''+n.id+'\')">삭제</button>':'')+'</div></div>'
   ).join(''):'<p class="muted">등록된 안내가 없습니다.</p>';
   document.getElementById('noticeAddForm').hidden=!isHomeroom();
+}
+let NOTICE_EDIT_ID=null;
+// 기존 안내를 클릭해서 그대로 폼에 불러와 고칠 수 있게 함 — 저장하면 앱스크립트로 업데이트되어 다른 사람 화면에도 반영됨
+function startNoticeEdit(id){
+  const n=Notices.all().find(x=>x.id===id);if(!n||!isHomeroom())return;
+  NOTICE_EDIT_ID=id;
+  document.getElementById('newTitle').value=n.title||'';
+  document.getElementById('newBody').value=n.body||'';
+  document.getElementById('noticeFormHint').textContent='✎ 안내 수정 중 (1학년 담임 전용)';
+  document.getElementById('noticeSubmitBtn').textContent='수정 저장';
+  document.getElementById('noticeCancelEditBtn').hidden=false;
+  document.getElementById('noticeAddForm').scrollIntoView({block:'nearest'});
+}
+function cancelNoticeEdit(){
+  NOTICE_EDIT_ID=null;
+  document.getElementById('newTitle').value='';document.getElementById('newBody').value='';
+  document.getElementById('noticeFormHint').textContent='+ 새 안내 추가 (1학년 담임 전용)';
+  document.getElementById('noticeSubmitBtn').textContent='등록';
+  document.getElementById('noticeCancelEditBtn').hidden=true;
 }
 async function addNotice(){
   if(!isHomeroom())return;
   const t=val('newTitle').trim(),b=val('newBody').trim();
   if(!t){alert('제목을 입력하세요.');return}
+  const editing=!!NOTICE_EDIT_ID;
   if(ACTIVE_APPS_URL){
-    try{const res=await postAppsScript(ACTIVE_APPS_URL,{action:'addNotice',entry:{title:t,body:b},editor:ME});
+    try{const res=await postAppsScript(ACTIVE_APPS_URL,editing?{action:'updateNotice',id:NOTICE_EDIT_ID,entry:{title:t,body:b},editor:ME}:{action:'addNotice',entry:{title:t,body:b},editor:ME});
       if(res.error){alert('저장 실패: '+res.error);return}
       applyRemoteSync(res);
     }catch(err){alert('저장 실패: '+err.message);return}
+  }else if(editing){
+    const a=Notices.all();const idx=a.findIndex(x=>x.id===NOTICE_EDIT_ID);
+    if(idx>=0){a[idx].title=t;a[idx].body=b;Notices._s(a);}
   }else{Notices.add({title:t,body:b});}
+  NOTICE_EDIT_ID=null;
+  document.getElementById('noticeFormHint').textContent='+ 새 안내 추가 (1학년 담임 전용)';
+  document.getElementById('noticeSubmitBtn').textContent='등록';
+  document.getElementById('noticeCancelEditBtn').hidden=true;
   document.getElementById('newTitle').value='';document.getElementById('newBody').value='';
   renderNoticeModalList();renderNoticeSummary();
 }
@@ -1645,6 +1730,8 @@ function renderClassTTGeneric(selId,wrapId){
     for(let d=0;d<5;d++){
       const blk=dayBlocked(d),c=cells[d][p];
       if(blk&&(blk.type!=='단축'||p>(blk.last||7))){h+='<td class="slot holiday"><span class="blk">'+(blk.type==='단축'?'단축':blk.type)+'</span></td>';continue}
+      const pblk=acPeriodBlocks(iso(dayDate(d)))[p];
+      if(pblk){h+='<td class="slot holiday"><span class="blk">'+pblk+'</span></td>';continue}
       let cls='slot',inner='';
       if(c&&c.empty){cls+=' empty mk-vac'}
       else if(c){cls+=' has';if(c.fill)cls+=' mk-fill';
@@ -2092,6 +2179,8 @@ function renderEduDays(){
     if(short)usedEntries.add(short);
     for(const p of PERIODS){
       if(p>lastPeriod)continue;
+      const pBlockEntry=hits.find(e=>(e.periods||[]).includes(p));
+      if(pBlockEntry){usedEntries.add(pBlockEntry);continue}
       const c=t.cells[di][p];
       if(!c||c.block)continue;
       counts[c.label]=(counts[c.label]||0)+1;
@@ -2101,7 +2190,7 @@ function renderEduDays(){
     const s=e.date<startStr?startStr:e.date;
     const en=e.end>endStr?endStr:e.end;
     const rangeStr=(s===en)?fmtAcDate(s):(fmtAcDate(s)+' ~ '+fmtAcDate(en));
-    const note=e.noClass?'(수업 없음)':(e.type==='단축'?('('+((e.last||7)+1)+'~7교시 제외)'):'');
+    const note=e.noClass?'(수업 없음)':(e.type==='단축'?('('+((e.last||7)+1)+'~7교시 제외)'):((e.periods&&e.periods.length)?('('+e.periods.join(',')+'교시 제외)'):''));
     return rangeStr+' · '+(e.title||e.type)+' '+note;
   });
   const rows=Object.keys(counts).sort();
