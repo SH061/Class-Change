@@ -101,13 +101,14 @@ table.tt td .chg{display:block;font-size:9px;font-weight:700;margin-top:2px}
 #ttWrap table.tt td .cl{font-size:30px}
 #ttWrap table.tt td .sub{font-size:16px;font-weight:700;color:var(--ink)}
 #ttWrap table.tt td .elec{font-size:15px}
-#swGrid table.tt col.phead{width:90px}
-#swGrid table.tt th .pnum{font-size:20px;font-weight:800;color:var(--ink);white-space:nowrap}
-#swGrid table.tt th .ptime{font-size:12px;font-weight:600;color:var(--muted-soft);white-space:nowrap}
-#swGrid table.tt td.slot{height:88px}
-#swGrid table.tt td .cl{font-size:27px}
-#swGrid table.tt td .sub{font-size:15px;font-weight:700;color:var(--ink)}
-#swGrid table.tt td .elec{font-size:14px}
+/* 수업교체/보강의 "내 시간표"도 [내 시간표] 탭과 완전히 같은 크기로 통일 */
+#swGrid table.tt col.phead{width:110px}
+#swGrid table.tt th .pnum{font-size:22px;font-weight:800;color:var(--ink);white-space:nowrap}
+#swGrid table.tt th .ptime{font-size:13px;font-weight:600;color:var(--muted-soft);white-space:nowrap}
+#swGrid table.tt td.slot{height:96px}
+#swGrid table.tt td .cl{font-size:30px}
+#swGrid table.tt td .sub{font-size:16px;font-weight:700;color:var(--ink)}
+#swGrid table.tt td .elec{font-size:15px}
 table.tt.clsTT col.phead{width:110px}
 table.tt.clsTT td.slot{height:96px}
 table.tt.clsTT td .cl{font-size:30px}
@@ -218,12 +219,14 @@ table.tt.clsTT td .sub{font-size:16px;font-weight:700}
 .chainrow .chaincol table.tt td .elec{font-size:10px;padding:0 5px}
 .legend i{width:11px;height:11px;border-radius:3px;display:inline-block;vertical-align:-1px;margin-right:4px}
 table.tt td.hit{background:var(--yellow)!important;outline:2px solid var(--primary-active);outline-offset:-2px}
-.chip{display:inline-block;border:1px solid var(--hairline);background:#fff;border-radius:99px;padding:4px 12px;font-size:12px;cursor:pointer;margin:0 6px 6px 0}
+.chip{display:inline-block;border:1px solid var(--hairline);background:#fff;border-radius:99px;padding:5px 16px;font-size:15.5px;font-weight:700;cursor:pointer;margin:0 8px 8px 0}
 .chip.on{background:var(--primary);color:#fff;border-color:var(--primary)}
+.gradeChips{display:flex;flex-direction:column;gap:2px}
+.gradeChipRow{display:flex;flex-wrap:wrap;align-items:center}
 
 /* sub-tabs (내 시간표 하위) */
-nav.subtabs{display:flex;gap:4px;margin-bottom:14px;border-bottom:1px solid var(--hairline)}
-nav.subtabs button{background:transparent;border:0;padding:9px 13px;font-size:12.5px;font-weight:600;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent}
+nav.subtabs{display:flex;gap:8px;margin-bottom:18px;border-bottom:1px solid var(--hairline)}
+nav.subtabs button{background:transparent;border:0;padding:12px 17px;font-size:16px;font-weight:700;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent}
 nav.subtabs button.on{color:var(--ink);border-bottom-color:var(--primary)}
 
 /* 오늘 교체 알림 배너 */
@@ -284,11 +287,11 @@ table.cmp s{color:var(--muted-soft)}
 .chgitem + .chgitem{margin-top:7px}
 .chgitem .x{float:right;cursor:pointer;color:var(--muted);border:0;background:none;font-size:14px}
 
-/* 수업교체/보강 화면 — 글자크기 1.3배 */
-#view-swap #swActorLabel{font-size:21px}
-#view-swap label{font-size:16px}
+/* 수업교체/보강 화면 — 내 시간표 탭과 동일한 크기로 통일 (pbar는 건드리지 않음) */
+#view-swap #swActorLabel{font-size:25px!important}
+#view-swap .panel label{font-size:16px!important}
 #view-swap select#swActorSel{font-size:16px;width:182px;padding:8px 10px}
-#view-swap>.split>.panel>p.muted,#view-swap .muted{font-size:16px}
+#view-swap .panel .muted{font-size:16px}
 #view-swap .info{font-size:17px;padding:13px 17px}
 #view-swap h3{font-size:17px}
 #view-swap .tierhead{font-size:16px;margin:18px 0 8px}
@@ -698,7 +701,7 @@ table.grid-ed input,table.grid-ed select{width:100%;padding:5px 6px}
 
     <!-- ===== 전체 시간표 ===== -->
     <section id="view-allTT" hidden>
-      <h2 style="font-size:17px;margin-bottom:12px">전체교사 시간표</h2>
+      <h2 style="font-size:22px;font-weight:800;text-align:center;margin-bottom:12px">전체교사 시간표</h2>
       <div class="card" id="allTTWrap2"></div>
     </section>
 
@@ -1510,8 +1513,11 @@ function allTTBar(targetId){
   let h='<div class="noprint" style="margin-bottom:12px">';
   h+='<nav class="subtabs" style="margin-bottom:10px">'+DAYNAMES.map((d,i)=>
     '<button class="'+(i===ALLTT_DAY?'on':'')+'" onclick="ALLTT_DAY='+i+';renderAllTeachersTT(\''+targetId+'\')">'+d+'요일</button>').join('')+'</nav>';
-  h+='<div>'+allClasses().map(c=>'<span class="chip'+(ALLTT_HILITE===c?' on':'')+'" onclick="pickAllTTClass(\''+c+'\')">'+c+'반</span>').join('')+
-     (ALLTT_HILITE?'<span class="chip" onclick="pickAllTTClass(null)" style="background:var(--canvas)">지우기 ✕</span>':'')+'</div>';
+  const byGrade={};allClasses().forEach(c=>{const g=c.split('-')[0];(byGrade[g]=byGrade[g]||[]).push(c)});
+  h+='<div class="gradeChips">'+Object.keys(byGrade).sort().map(g=>
+    '<div class="gradeChipRow">'+byGrade[g].map(c=>'<span class="chip'+(ALLTT_HILITE===c?' on':'')+'" onclick="pickAllTTClass(\''+c+'\')">'+c+'반</span>').join('')+'</div>'
+  ).join('')+'</div>'+
+  (ALLTT_HILITE?'<span class="chip" onclick="pickAllTTClass(null)" style="background:var(--canvas)">지우기 ✕</span>':'');
   h+='</div>';
   return h;
 }
