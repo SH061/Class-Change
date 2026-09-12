@@ -324,6 +324,13 @@ table.grid-ed input,table.grid-ed select{width:100%;padding:5px 6px}
 
 #modal{position:fixed;inset:0;background:rgba(20,20,19,.45);display:flex;align-items:flex-start;justify-content:center;padding:6vh 20px;z-index:50;overflow:auto}
 #modal .card{background:var(--canvas);max-width:560px;width:100%}
+/* appConfirm/appAlert 전용 확인창 — 수업교체 확정 등 원래 폼이 있는 openModal()과는 별개로,
+   PC에서 가독성 좋게 카드를 키우고 버튼을 아래 가운데로 모음 (openModal 쪽은 그대로 둠) */
+#modal .card.confirmCard{max-width:720px;padding:36px 40px}
+.confirmCard #mTitle{font-size:22px}
+.confirmCard #mBody p{font-size:19px;line-height:1.8}
+#mBtnRow.center{justify-content:center;gap:16px}
+.confirmCard #mCancelBtn,.confirmCard #mOk{font-size:15.6px;padding:8px 15px;min-width:104px}
 
 /* ============ 수업교체일지 : 원본 서식 (A4 가로) ============ */
 .jilji{background:#fff;color:#000;width:270mm;height:165mm;margin:0 auto;padding:13mm 9mm 0;font-family:"바탕","Batang","HY바탕M",serif;font-weight:400;-webkit-text-stroke:.35px #000;position:relative}
@@ -835,7 +842,7 @@ table.grid-ed input,table.grid-ed select{width:100%;padding:5px 6px}
 <div id="modal" hidden><div class="card">
   <h3 id="mTitle" style="font-size:17px;margin-bottom:12px"></h3>
   <div id="mBody" style="display:flex;flex-direction:column;gap:11px"></div>
-  <div class="row" style="margin-top:16px;justify-content:flex-end">
+  <div class="row" id="mBtnRow" style="margin-top:16px;justify-content:flex-end">
     <button class="btn ghost sm" id="mCancelBtn" onclick="closeModal()">취소</button>
     <button class="btn sm" id="mOk">확정</button>
   </div>
@@ -2145,6 +2152,8 @@ function renderChain2Preview(){
 function openModal(title,body,onOk){document.getElementById('mTitle').textContent=title;
   document.getElementById('mBody').innerHTML=body;document.getElementById('modal').hidden=false;
   document.getElementById('mOk').textContent='확정';document.getElementById('mCancelBtn').hidden=false;
+  document.querySelector('#modal .card').classList.remove('confirmCard');
+  document.getElementById('mBtnRow').classList.remove('center');
   document.getElementById('mOk').onclick=()=>{if(onOk()!==false)closeModal()}}
 let _confirmResolve=null;
 function closeModal(){document.getElementById('modal').hidden=true;
@@ -2153,9 +2162,11 @@ function closeModal(){document.getElementById('modal').hidden=true;
 // appConfirm은 "확인"을 누르면 true, "취소"나 바깥을 누르면 false로 풀리는 프로미스를 돌려줌.
 function appConfirm(msg,title){
   document.getElementById('mTitle').textContent=title||'확인해주세요';
-  document.getElementById('mBody').innerHTML='<p class="muted" style="margin:0;line-height:1.6;white-space:pre-line">'+msg+'</p>';
+  document.getElementById('mBody').innerHTML='<p class="muted" style="margin:0;white-space:pre-line">'+msg+'</p>';
   document.getElementById('mCancelBtn').hidden=false;
   document.getElementById('mOk').textContent='확인';
+  document.querySelector('#modal .card').classList.add('confirmCard');
+  document.getElementById('mBtnRow').classList.add('center');
   document.getElementById('modal').hidden=false;
   return new Promise(resolve=>{
     _confirmResolve=resolve;
@@ -2165,9 +2176,11 @@ function appConfirm(msg,title){
 // appAlert는 "확인" 버튼 하나만 있는 안내창(취소 버튼 숨김) — 닫히면 프로미스가 풀림.
 function appAlert(msg,title){
   document.getElementById('mTitle').textContent=title||'안내';
-  document.getElementById('mBody').innerHTML='<p class="muted" style="margin:0;line-height:1.6;white-space:pre-line">'+msg+'</p>';
+  document.getElementById('mBody').innerHTML='<p class="muted" style="margin:0;white-space:pre-line">'+msg+'</p>';
   document.getElementById('mCancelBtn').hidden=true;
   document.getElementById('mOk').textContent='확인';
+  document.querySelector('#modal .card').classList.add('confirmCard');
+  document.getElementById('mBtnRow').classList.add('center');
   document.getElementById('modal').hidden=false;
   return new Promise(resolve=>{
     _confirmResolve=null;
