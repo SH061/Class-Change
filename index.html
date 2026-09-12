@@ -195,11 +195,11 @@ table.tt.clsTT td .sub{font-size:16px;font-weight:700}
 #daysModal p.muted{font-size:19.5px}
 .dcSummary{text-align:center;font-size:19.5px;color:var(--body);margin-bottom:16px}
 .dcSummary b{color:var(--primary);font-size:24.7px}
-.dcWeekTable{width:100%;border-collapse:collapse;margin-bottom:18px}
+.dcWeekTable{width:100%;border-collapse:collapse;margin-bottom:18px;table-layout:fixed}
 .dcWeekTable th,.dcWeekTable td{border:1px solid var(--hairline);padding:11px 8px;text-align:center;font-size:18.2px}
 .dcWeekTable th{background:var(--cream-strong);font-weight:700}
 .dcWeekTable td{font-weight:800;font-size:20.8px;color:var(--ink)}
-.dcTable{width:100%;border-collapse:collapse}
+.dcTable{width:100%;border-collapse:collapse;table-layout:fixed}
 .dcTable th,.dcTable td{border:1px solid var(--hairline);padding:11px 8px;text-align:center;font-size:18.2px}
 .dcTable th{background:var(--cream-strong);font-weight:700}
 .dcTable td.cnt{font-weight:800;font-size:20.8px;color:var(--ink)}
@@ -451,6 +451,42 @@ table.grid-ed input,table.grid-ed select{width:100%;padding:5px 6px}
 
   .legend{font-size:10px;gap:6px}
   .legend i{width:8px;height:8px}
+
+  /* "더보기" 메뉴로 여는 모달들(학사일정/안내/수업일수 확인)도 화면 폭에 맞춰 축소 */
+  .noticeModal .sheet{width:94vw!important;max-width:94vw!important;padding:16px 14px;font-size:13px}
+  .noticeModal .sheet .x{top:14px;right:14px;font-size:18px}
+  .noticeModal .sheet h2{font-size:17px!important}
+  .noticeModal .sheet p.muted{font-size:12px!important}
+
+  .calGridTable{margin-top:8px}
+  .calGridTable th{padding:4px 2px;font-size:10.5px}
+  .calGridTable td{height:52px;padding:3px 2px}
+  .calGridTable .daynum{font-size:11px;margin-bottom:2px}
+  .calGridTable .evt{font-size:8px;padding:2px 3px;margin-bottom:2px}
+  .calDetailBox{padding:10px 12px;margin-top:10px}
+  .calDetailBox h4{font-size:13px}
+  .calDetailBox .body{font-size:12px}
+
+  .noticeTitle{font-size:13px;padding:6px 0}
+  .noticeItem{padding:10px 0}
+  .noticeItem h4{font-size:13px}
+  .noticeItem .body{font-size:12px}
+  .noticeItem .meta{font-size:10px}
+
+  .addForm{margin-top:10px;padding-top:10px}
+  .addForm input,.addForm textarea,.addForm select{font-size:13px;padding:7px 9px}
+  .addForm .hint{font-size:10.5px}
+
+  .dcSummary{font-size:14px;margin-bottom:10px}
+  .dcSummary b{font-size:17px}
+  .dcWeekTable th,.dcWeekTable td{padding:6px 3px;font-size:12px}
+  .dcWeekTable td{font-size:13px}
+  .dcTable th,.dcTable td{padding:6px 3px;font-size:12px}
+  .dcTable td.cnt{font-size:13px}
+  .dcPicker{max-width:100%;padding:10px 12px}
+  .dcPickerHead{font-size:14px}
+  .dcPickerHead button{width:26px;height:26px;font-size:14px}
+  .dcPickerTable th{font-size:10px}
 }
 </style>
 </head>
