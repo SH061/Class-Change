@@ -151,6 +151,9 @@ table.tt.clsTT td .sub{font-size:16px;font-weight:700}
 .noticeModal .sheet p.muted{font-size:15px}
 .noticeModal .sheet.cal-sheet{width:980px}
 .noticeModal .sheet.chg-sheet{width:640px}
+/* PC: 이전달/다음달을 제목 좌우로 붙여 별도 줄을 없애고 세로 공간을 절약 */
+.calNavMobile{display:none!important}
+.cal-sheet .calGridTable td{height:74px}
 .noticeModal .sheet .x{position:absolute;top:24px;right:28px;cursor:pointer;font-size:24px;color:var(--muted);background:none;border:0}
 .noticeItem{border-bottom:1px solid var(--hairline);padding:16px 0}
 .noticeItem:first-of-type{padding-top:14px}
@@ -422,6 +425,9 @@ table.grid-ed input,table.grid-ed select{width:100%;padding:5px 6px}
 
   /* "더보기"로 열리는 모달들도 화면에 맞게 여백 축소 */
   .noticeModal .sheet{padding:20px 16px}
+  /* 학사일정 모달: 이전달/다음달은 PC에서만 제목 옆으로 붙임 — 모바일/태블릿은 기존처럼 제목 아래 가운데 정렬된 별도 줄 유지 */
+  .calNavDesktop{display:none!important}
+  .calNavMobile{display:flex!important}
 }
 
 @media (max-width:600px){
@@ -496,9 +502,10 @@ table.grid-ed input,table.grid-ed select{width:100%;padding:5px 6px}
   .addForm{margin-top:10px;padding-top:10px}
   .addForm input,.addForm textarea,.addForm select{font-size:13px;padding:7px 9px}
   .addForm .hint{font-size:10.5px}
-  .calGradeRow{flex-wrap:nowrap!important;gap:6px!important}
+  .calGradeRow{flex-wrap:wrap!important;gap:6px!important}
   .calGradeRow label{flex:1;text-align:center;justify-content:center;display:flex;align-items:center;gap:3px}
   .calGradeLbl{flex:0 0 auto;white-space:nowrap}
+  .calGradeNote{flex-basis:100%;text-align:center;margin-top:2px!important;margin-left:0!important}
 
   .dcTitle{font-size:20px!important;margin-bottom:4px}
   .dcDateField{font-size:13px!important;padding:6px 10px!important;gap:4px}
@@ -688,9 +695,13 @@ table.grid-ed input,table.grid-ed select{width:100%;padding:5px 6px}
     <div class="noticeModal" id="calModal" onclick="if(event.target===this)closeCalModal()">
       <div class="sheet cal-sheet" style="position:relative">
         <button class="x" onclick="closeCalModal()">✕</button>
-        <h2 style="text-align:center" id="calModalTitle">학사일정</h2>
-        <p class="muted" style="margin:0 0 4px;text-align:center">날짜를 보면 제목만 보이고, 제목을 누르면 자세한 내용이 나옵니다. 1학년 담임 선생님만 새 일정을 추가할 수 있습니다.</p>
-        <div style="display:flex;align-items:center;justify-content:center;gap:14px;margin:8px 0">
+        <div class="calTitleRow" style="display:flex;align-items:center;gap:10px">
+          <button type="button" class="btn sm ghost calNavDesktop" onclick="calNav(-1)">‹ 이전달</button>
+          <h2 style="text-align:center;flex:1;margin:0" id="calModalTitle">학사일정</h2>
+          <button type="button" class="btn sm ghost calNavDesktop" onclick="calNav(1)">다음달 ›</button>
+        </div>
+        <p class="muted" style="margin:6px 0 4px;text-align:center">날짜를 보면 제목만 보이고, 제목을 누르면 자세한 내용이 나옵니다. 1학년 담임 선생님만 새 일정을 추가할 수 있습니다.</p>
+        <div class="calNavMobile" style="align-items:center;justify-content:center;gap:14px;margin:8px 0">
           <button type="button" class="btn sm ghost" onclick="calNav(-1)">‹ 이전달</button>
           <button type="button" class="btn sm ghost" onclick="calNav(1)">다음달 ›</button>
         </div>
@@ -711,8 +722,8 @@ table.grid-ed input,table.grid-ed select{width:100%;padding:5px 6px}
             <label style="white-space:nowrap"><input type="checkbox" id="calG1" style="width:auto"> 1학년</label>
             <label style="white-space:nowrap"><input type="checkbox" id="calG2" style="width:auto"> 2학년</label>
             <label style="white-space:nowrap"><input type="checkbox" id="calG3" style="width:auto"> 3학년</label>
+            <span class="calGradeNote muted" style="font-size:12.5px;margin-left:2px">(전부 미선택 시 전체 학년)</span>
           </div>
-          <div class="calGradeNote muted" style="font-size:12.5px;margin-top:2px;text-align:center">(전부 미선택 시 전체 학년)</div>
           <label style="display:flex;gap:6px;align-items:center;margin-top:6px;font-size:12.5px;color:var(--muted)">
             <input type="checkbox" id="calNoClass" style="width:auto"> 이 날은 정상 수업이 없음(수업교체 대상에서 자동 제외)
           </label>
@@ -936,7 +947,10 @@ function buildModel(ttRows,teText){
     if(subjRow)r++;
     const t={name,cells,homeroom};M.teachers.push(t);M.byName[name]=t;
     if(!M.info[name]){const subs=new Set();
-      for(let d=0;d<5;d++)for(const p of PERIODS){const x=cells[d][p];if(x&&x.subj)subs.add(x.subj)}
+      // 동아리/자율활동/진로활동은 거의 모든 담임이 공통으로 갖는 활동이라 실제 자격증 교과가 아님 —
+      // "교사" 탭(자격증 정보)이 없을 때의 추정치에 섞이면 전혀 무관한 교사끼리 "동교과"로 오판정되므로 제외
+      const NON_SUBJECT=[...ACTIVITY_WORDS,'진로활동'];
+      for(let d=0;d<5;d++)for(const p of PERIODS){const x=cells[d][p];if(x&&x.subj&&!NON_SUBJECT.includes(x.subj))subs.add(x.subj)}
       M.info[name]={subject:[...subs][0]||'',depts:subs};}
   }
   M.teachers.sort((a,b)=>a.name.localeCompare(b.name,'ko'));
@@ -1897,7 +1911,7 @@ function confirmVolunteer(otherTeacher,d,p){
   openModal('보강 대신 맡기',
     '<p class="muted">'+DAYNAMES[d]+' '+p+'교시 <b>'+c.label+'</b> ('+otherTeacher+' 선생님 수업)을 '+SWACTOR+' 선생님이 대신 맡습니다.</p>'+
     '<div class="field"><label>결강 날짜</label><input id="mAbs" type="date" value="'+iso(dayDate(d))+'"></div>'+
-    subjPickerField('mCoverSubj','보강 교과 (실제로 무슨 수업을 하시나요? 시수 부족 등으로 다른 과목이면 바꿔주세요)',subjFull(SWACTOR,null))+
+    subjPickerField('mCoverSubj','보강 교과 (수업시수 보전을 위해 원래 교과로 들어갑니다. 실제로 다른 과목을 가르치면 바꿔주세요)',subjFull(otherTeacher,c))+
     '<div class="field"><label>보강계획 날짜 (되갚는 수업, 없으면 비움)</label><input id="mMk" type="date"></div>'+
     '<div class="field"><label>보강계획 교시</label><input id="mMkP" type="number" min="1" max="7"></div>'+
     reasonFields(),
@@ -2110,7 +2124,7 @@ function confirmSub(name,same,d,p){
   openModal((same?'동교과 ':'')+'보강 확정',
     '<p class="muted">'+DAYNAMES[d]+' '+p+'교시 <b>'+my.label+'</b> ('+SWACTOR+') 를 '+name+' 선생님이 보강합니다.</p>'+
     '<div class="field"><label>결강 날짜</label><input id="mAbs" type="date" value="'+iso(dayDate(d))+'"></div>'+
-    subjPickerField('mCoverSubj','보강 교과 (그 선생님이 실제로 무슨 수업을 하시나요? 시수 부족 등으로 다른 과목이면 바꿔주세요)',subjFull(name,null))+
+    subjPickerField('mCoverSubj','보강 교과 (수업시수 보전을 위해 원래 교과로 들어갑니다. 실제로 다른 과목을 가르치면 바꿔주세요)',subjFull(SWACTOR,my))+
     '<div class="field"><label>보강계획 날짜 (되갚는 수업, 없으면 비움)</label><input id="mMk" type="date"></div>'+
     '<div class="field"><label>보강계획 교시</label><input id="mMkP" type="number" min="1" max="7"></div>'+
     reasonFields(),
