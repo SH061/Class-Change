@@ -82,6 +82,8 @@ table.tt td.has{background:#fff;cursor:grab}
 table.tt td.has:active{cursor:grabbing}
 table.tt td.selm.has:hover{outline:2px solid var(--primary);outline-offset:-2px}
 table.tt td.empty.drop-ok{outline:2px dashed var(--teal);outline-offset:-2px;background:#eef7f4}
+table.tt td.pick{cursor:pointer}
+table.tt td.pick:hover{outline:2px solid var(--primary);outline-offset:-2px}
 table.tt td.picked{background:var(--amber);color:#fff}
 table.tt td.picked .cl{color:#fff}
 table.tt td .cl{font-weight:700;color:var(--ink);font-size:19px;line-height:1.15}
@@ -335,6 +337,36 @@ table.grid-ed input,table.grid-ed select{width:100%;padding:5px 6px}
 .confirmCard #mBody p{font-size:19px;line-height:1.8}
 #mBtnRow.center{justify-content:center;gap:16px}
 .confirmCard #mCancelBtn,.confirmCard #mOk{font-size:15.6px;padding:8px 15px;min-width:104px}
+
+/* ============ 진도표 (내 시간표 칸 클릭 → 확대) ============ */
+.jindoZoom{position:fixed;inset:0;background:rgba(20,20,19,0);display:flex;align-items:flex-start;justify-content:center;padding:5vh 20px;opacity:0;pointer-events:none;transition:background .22s,opacity .22s;overflow:auto;z-index:150}
+.jindoZoom.on{background:rgba(20,20,19,.45);opacity:1;pointer-events:auto}
+.jindoZoom .sheet{transform:scale(.8) translateY(8px);opacity:0;transition:transform .24s cubic-bezier(.2,.8,.2,1),opacity .18s}
+.jindoZoom.on .sheet{transform:scale(1) translateY(0);opacity:1}
+.jindo-sheet{width:860px;background:var(--card);border-radius:var(--r-lg);padding:28px 32px 26px;box-shadow:0 20px 50px rgba(20,20,19,.28);border-top:5px solid var(--primary);position:relative}
+.jindoHead{display:flex;align-items:center;gap:10px;margin-bottom:2px}
+.jindoHead h2{flex:1;min-width:0;font-size:22px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.jindoHead select{width:auto;min-width:80px;flex:0 0 auto}
+.jindoHead .x{position:static;font-size:20px;color:var(--muted);background:none;border:0;cursor:pointer;line-height:1;padding:4px;flex:0 0 auto}
+.jindoHead .x:hover{color:var(--ink)}
+.jindoDateBar{display:flex;align-items:center;gap:10px;background:var(--canvas);border:1px solid var(--hairline);border-radius:10px;padding:10px 12px;margin:14px 0}
+.jindoDateBar .chip{display:inline-flex;align-items:center;height:30px;font-size:13px;font-weight:800;color:var(--ink);background:var(--cream-strong);padding:0 10px;border-radius:8px;white-space:nowrap;box-sizing:border-box}
+.jindoDateBar input{flex:1;margin:0;height:30px;box-sizing:border-box}
+.jindoDateBar button{white-space:nowrap;height:30px;box-sizing:border-box;padding:0 14px}
+.jindoItem{border-bottom:1px solid var(--hairline);padding:12px 0}
+.jindoItem:first-of-type{padding-top:14px}
+.jindoItem:last-of-type{border-bottom:0}
+.jindoItem .period{color:var(--primary);font-weight:800;font-size:13px}
+.jindoItem .body{font-size:13px;color:var(--body);white-space:pre-line;line-height:1.6;margin-top:4px}
+.jindoItem.today{background:rgba(204,120,92,.08);border-left:3px solid var(--primary);border-radius:0 8px 8px 0;padding:10px 10px 10px 13px;margin:0 -10px}
+@media (max-width:600px){
+  .jindo-sheet{width:100%;padding:20px 16px 18px}
+  .jindoHead h2{font-size:16px}
+  .jindoDateBar{flex-wrap:wrap}
+  .jindoDateBar .chip{order:1}
+  .jindoDateBar button{order:2;margin-left:auto}
+  .jindoDateBar input{order:3;flex:0 0 100%}
+}
 
 /* ============ 수업교체일지 : 원본 서식 (A4 가로) ============ */
 .jilji{background:#fff;color:#000;width:270mm;height:165mm;margin:0 auto;padding:13mm 9mm 0;font-family:"바탕","Batang","HY바탕M",serif;font-weight:400;-webkit-text-stroke:.35px #000;position:relative}
@@ -852,6 +884,11 @@ table.grid-ed input,table.grid-ed select{width:100%;padding:5px 6px}
   </div>
 </div></div>
 
+<!-- ===== 진도표 (내 시간표에서 반 칸 클릭) ===== -->
+<div class="jindoZoom" id="jindoZoom" onclick="if(event.target===this)closeJindo()">
+  <div class="sheet jindo-sheet" id="jindoCard"></div>
+</div>
+
 <script>
 /* ===== 저장 유틸 ===== */
 const LS={cfg:'dgs_cfg_v3',user:'dgs_user_v3',changes:'dgs_changes_v3',academic:'dgs_academic_v3',form:'dgs_form_v3',notices:'dgs_notices_v1'};
@@ -1317,6 +1354,9 @@ function applyRemoteSync(j){
     const localOnly=Store.all().filter(r=>r.local&&!j.swaps.some(s=>s.id===r.id));
     Store._s([...j.swaps,...localOnly]);
   }
+  // 진도표 열람·수정 권한 명단 — 로그인(최초 로딩) 시 이 한 번만 받아서 캐시해두고,
+  // 이후 칸을 몇 번 눌러도 다시 서버에 물어보지 않음(canUseJindo()가 이 배열만 확인).
+  if(Array.isArray(j.progressAccess))PROGRESS_ACCESS=j.progressAccess;
 }
 async function postAppsScript(url,body){
   const r=await fetch(url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(body)});
@@ -1457,6 +1497,10 @@ function ttTable(name,opts){
       if(opts.selectable){
         if(c&&!c.block)attr=' draggable="true" ondragstart="dragStart(event,'+d+','+p+')" onclick="slotClick('+d+','+p+')"';
         else if(!c)attr=' ondragover="dragOver(event)" ondragleave="dragLeave(event)" ondrop="dropOn(event,'+d+','+p+')" onclick="emptyClick('+d+','+p+')"';
+      }else if(opts.jindo&&c&&!c.block&&c.grade&&c.cls&&canUseJindo()){
+        cls.push('pick');
+        const subj=(subjFull(name,c)||c.label||'').replace(/'/g,"\\'");
+        attr=' onclick="openJindo(\''+c.grade+'-'+c.cls+'\',\''+subj+'\','+d+','+p+')"';
       }
       h+='<td class="'+cls.join(' ')+'"'+attr+'>'+inner+'</td>';
     }
@@ -1464,7 +1508,67 @@ function ttTable(name,opts){
   }
   return h+'</tbody></table>';
 }
-function renderTimetable(){document.getElementById('ttWrap').innerHTML=ttTable(ME,{self:true,effective:true});renderTTSidebar()}
+function renderTimetable(){document.getElementById('ttWrap').innerHTML=ttTable(ME,{self:true,effective:true,jindo:true});renderTTSidebar()}
+
+/* ===== 진도표 — 로그인 시 1번만 확인한 접근 권한(PROGRESS_ACCESS)을 계속 재사용, 클릭마다 서버에 다시 물어보지 않음 ===== */
+let PROGRESS_ACCESS=[];
+function canUseJindo(){return PROGRESS_ACCESS.includes(ME)}
+let JINDO_CTX=null; // {cls, subject, date, period, dayLabel} — 지금 열려있는 진도표의 기준 정보
+function jindoRowsHTML(list,dateIso,period){
+  if(!list.length)return '<p class="muted" style="padding:10px 0">아직 입력된 진도가 없습니다.</p>';
+  return list.map(r=>{
+    const isToday=r.date===dateIso&&+r.period===+period;
+    const dt=dparse(r.date);const wi=(dt.getDay()+6)%7;
+    const dayLbl=(wi>=0&&wi<=4?DAYNAMES[wi]:'')+'('+md(dt)+')';
+    return '<div class="jindoItem'+(isToday?' today':'')+'"><span class="period">'+dayLbl+' · '+r.period+'교시</span>'+
+      (r.body?'<div class="body">'+r.body+'</div>':'<p class="muted" style="margin:4px 0 0;font-size:12px">아직 입력된 진도가 없습니다 — 위 입력창에 적어보세요</p>')+
+      '</div>';
+  }).join('');
+}
+function jindoCardHTML(cls,list){
+  const opts=allClasses().map(c=>'<option value="'+c+'"'+(c===cls?' selected':'')+'>'+c+'반</option>').join('');
+  return '<div class="jindoHead"><h2>&lt;'+cls+'반 '+JINDO_CTX.subject+' 진도표&gt;</h2>'+
+    '<select onchange="switchJindoCls(this.value)">'+opts+'</select>'+
+    '<button class="x" onclick="closeJindo()">✕</button></div>'+
+    '<div class="jindoDateBar"><span class="chip">'+JINDO_CTX.dayLabel+' · '+JINDO_CTX.period+'교시</span>'+
+    '<input id="jindoInput" placeholder="오늘 진도·특이사항 (예: 2단원 화학결합, 모형 만들기 활동)" onkeydown="if(event.key===\'Enter\')saveJindo(this)">'+
+    '<button class="btn sm" onclick="saveJindo(this.previousElementSibling)">저장</button></div>'+
+    '<div id="jindoList">'+jindoRowsHTML(list,JINDO_CTX.date,JINDO_CTX.period)+'</div>';
+}
+async function openJindo(cls,subject,d,p){
+  if(!canUseJindo())return;
+  const dt=dayDate(d),dateIso=iso(dt),dayLabel=DAYNAMES[d]+'('+md(dt)+')';
+  JINDO_CTX={cls,subject,date:dateIso,period:p,dayLabel};
+  const card=document.getElementById('jindoCard');
+  card.innerHTML='<div class="jindoHead"><h2>&lt;'+cls+'반 '+subject+' 진도표&gt;</h2><button class="x" onclick="closeJindo()">✕</button></div><p class="muted" style="padding:20px 0">불러오는 중…</p>';
+  document.getElementById('jindoZoom').classList.add('on');
+  await loadJindo(cls);
+}
+async function loadJindo(cls){
+  let list=[];
+  if(ACTIVE_APPS_URL){
+    try{const res=await postAppsScript(ACTIVE_APPS_URL,{action:'getProgress',cls,subject:JINDO_CTX.subject,editor:ME});
+      if(!res.error)list=res.progress||[];
+    }catch(e){/* 오프라인 등 — 빈 목록으로 보여줌 */}
+  }
+  JINDO_CTX.cls=cls;
+  const card=document.getElementById('jindoCard');
+  card.innerHTML=jindoCardHTML(cls,list);
+  const input=card.querySelector('#jindoInput');if(input)setTimeout(()=>input.focus(),260);
+}
+function switchJindoCls(cls){return loadJindo(cls)}
+function closeJindo(){document.getElementById('jindoZoom').classList.remove('on')}
+async function saveJindo(inputEl){
+  const txt=inputEl.value.trim();if(!txt)return;
+  if(!canUseJindo())return;
+  const entry={cls:JINDO_CTX.cls,subject:JINDO_CTX.subject,date:JINDO_CTX.date,period:JINDO_CTX.period,body:txt};
+  if(!ACTIVE_APPS_URL){appAlert('구글시트 연동이 설정되지 않아 저장할 수 없습니다.');return}
+  try{const res=await postAppsScript(ACTIVE_APPS_URL,{action:'saveProgress',entry,editor:ME});
+    if(res.error){appAlert('저장 실패: '+res.error);return}
+    document.getElementById('jindoList').innerHTML=jindoRowsHTML(res.progress||[],JINDO_CTX.date,JINDO_CTX.period);
+    inputEl.value='';
+  }catch(err){appAlert('저장 실패: '+err.message)}
+}
 
 /* ===== 내 시간표 오른쪽 사이드 카드 3개 ===== */
 function renderTTSidebar(){renderChgSummary();renderCalWeekSummary();renderNoticeSummary()}

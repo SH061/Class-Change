@@ -9,7 +9,9 @@
 //   - 학교 및 학년 안내 — "1학년 담임"만 등록/수정/삭제 가능
 //   - 수업교체·보강 확정 기록 — 아무 교사나 자기 자신의 것을 등록/취소 가능. 이걸 통해
 //     반별 시간표에 접속한 모든 사람이 확정된 수업교체·보강을 실시간으로 볼 수 있습니다.
-//     ("학사일정"/"안내"/"수업교체" 시트는 없어도 됩니다 — 처음 등록할 때 자동으로 만들어집니다.)
+//   - 진도표(반·과목별 진도/특이사항) — "설정" 시트의 "진도표접근허용" 명단에 있는 교사만
+//     "내 시간표"에서 반 칸을 눌러 열람·수정 가능.
+//     ("학사일정"/"안내"/"수업교체"/"진도표" 시트는 없어도 됩니다 — 처음 등록할 때 자동으로 만들어집니다.)
 //
 // ── 사용법 ──────────────────────────────────────────────
 // 1) 지금 쓰시는 "전체교사 시간표"를 구글시트에 그대로 붙여넣습니다.
@@ -20,8 +22,11 @@
 //    A3셀에 "수업교체대상", B3셀에 수업교체·보강 기록을 이 시트로 받을 교사만 쉼표로
 //    나열해 적습니다. (예: 조시현,정병성,최광혁 — 관리 범위인 1학년 관련 교사만) 이 칸을
 //    비워두면(행 자체가 없으면) 예전처럼 모든 교사의 기록을 다 받습니다.
+//    A4셀에 "진도표접근허용", B4셀에 "내 시간표"에서 진도표를 열람·수정할 수 있는 교사를
+//    쉼표로 나열해 적습니다. (예: 조시현) 이 칸을 비워두면 아무도 진도표 기능을 쓸 수
+//    없습니다(기본이 "전부 차단"인 유일한 항목 — 명단을 넣기 전까진 기능 자체가 꺼져 있음).
 //    이 값들은 여기서만(구글시트에서 직접) 관리합니다 — 브라우저에서는 못 바꿉니다.
-//    "학사일정", "안내" 시트는 없어도 됩니다 — 처음 등록할 때 자동으로 만들어집니다.
+//    "학사일정", "안내", "진도표" 시트는 없어도 됩니다 — 처음 등록할 때 자동으로 만들어집니다.
 // 2-1) (선택, 권장) "교사"라는 이름의 시트를 하나 더 만들고, 1행은 헤더(이름/담당과목/교과),
 //    2행부터 한 명씩 이름·담당과목·교과(자격증)를 적습니다. (예: 심서아, 화학1, 과학)
 //    "동교과 보강 가능" 목록이 이 표의 3번째 칸(교과) 기준으로 정확하게 표시됩니다.
@@ -57,6 +62,7 @@ const NOTICE_SHEET = '안내';
 const CONFIG_SHEET = '설정';
 const TEACHER_SHEET = '교사'; // 이름 | 담당과목 | 교과(자격증) — "동교과 보강" 판정에 쓰임
 const SWAP_SHEET = '수업교체'; // 확정된 맞교체/보강 기록 — 반별 시간표에 모두에게 반영됨
+const PROGRESS_SHEET = '진도표'; // 반·과목별 진도/특이사항 기록 — 열람·수정 모두 권한이 있는 교사만
 
 function doGet(e) {
   try {
@@ -76,7 +82,11 @@ function doGet(e) {
       homerooms: readHomerooms(ss),
       teachers: readTeachers(ss),
       weeks: readWeeks(ss),
-      swaps: readSwaps(ss)
+      swaps: readSwaps(ss),
+      // 진도표 열람·수정 권한 명단만 실어 보냄(실제 진도 내용은 반 칸을 눌렀을 때만 따로 요청함) —
+      // 로그인 시 이 목록만 한 번 받아서 브라우저가 캐시해두고, 그 뒤로는 클릭할 때마다
+      // 서버에 권한을 다시 묻지 않음.
+      progressAccess: readProgressAccess(ss)
     });
   } catch (err) {
     return jsonOut({ error: String(err) });
@@ -86,6 +96,10 @@ function doGet(e) {
 // 학사일정/안내 추가·삭제는 "1학년 담임"만 — 그 외(수업교체·보강 기록)는 자기 자신의
 // 시간표를 바꾸는 것이므로 아무 교사나 가능합니다. 시간표·기타 설정은 여기서 안 건드림.
 const HOMEROOM_ONLY_ACTIONS = ['addAcademic', 'updateAcademic', 'deleteAcademic', 'addNotice', 'updateNotice', 'deleteNotice'];
+
+// 진도표 열람·수정은 별도 권한 명단(설정 시트의 "진도표접근허용")으로 가둠 — 학사일정/안내와도,
+// 수업교체와도 다른 별개의 명단.
+const PROGRESS_ONLY_ACTIONS = ['getProgress', 'saveProgress'];
 
 function doPost(e) {
   try {
@@ -99,6 +113,21 @@ function doPost(e) {
       }
       if (!homerooms.includes(editor)) {
         return jsonOut({ error: '수정 권한이 없습니다: ' + editor });
+      }
+    }
+    if (PROGRESS_ONLY_ACTIONS.indexOf(body.action) >= 0) {
+      const allowed = readProgressAccess(ss);
+      if (!allowed.length || allowed.indexOf(editor) < 0) {
+        return jsonOut({ error: '진도표 접근 권한이 없습니다: ' + editor });
+      }
+      // 진도표는 다른 시트들(학사일정·안내·수업교체)을 매번 다시 안 읽고 이 요청만 처리해서
+      // 응답을 가볍게 유지함(칸을 누를 때마다 호출되므로).
+      if (body.action === 'getProgress') {
+        return jsonOut({ ok: true, progress: readProgress(ss, body.cls, body.subject) });
+      }
+      if (body.action === 'saveProgress') {
+        upsertProgress(ss, body.entry || {}, editor);
+        return jsonOut({ ok: true, progress: readProgress(ss, body.entry.cls, body.entry.subject) });
       }
     }
     if (body.action === 'addAcademic') {
@@ -280,6 +309,23 @@ function readSwapScope(ss) {
   return [];
 }
 
+// "설정" 시트에서 "진도표접근허용" 행을 찾아 그 옆칸(쉼표로 구분된 이름들)을 읽습니다.
+// 여기 적힌 교사만 "내 시간표"에서 반 칸을 눌러 진도표를 열람·수정할 수 있습니다. 이 칸이
+// 비어있으면(행 자체가 없으면) 아무도 못 씁니다 — 안내/학사일정과 달리 기본값이 "전부 허용"이
+// 아니라 "전부 차단"인 이유는, 관리자가 명단을 넣기 전까지는 이 기능 자체가 없는 셈이어야
+// (실수로 아무나 다 쓰다가 데이터가 커지는 일이 없도록) 하기 때문입니다.
+function readProgressAccess(ss) {
+  const sh = ss.getSheetByName(CONFIG_SHEET);
+  if (!sh) return [];
+  const rows = sh.getDataRange().getValues();
+  for (let i = 0; i < rows.length; i++) {
+    if (String(rows[i][0]).trim() === '진도표접근허용') {
+      return String(rows[i][1] || '').split(',').map(function (x) { return x.trim(); }).filter(Boolean);
+    }
+  }
+  return [];
+}
+
 // "설정" 시트에서 "담임명단" 행을 찾아 그 옆칸(쉼표로 구분된 이름들)을 읽습니다.
 // 이 목록은 관리자가 구글시트에서 직접 관리합니다 — 브라우저에서는 못 바꿉니다.
 function readHomerooms(ss) {
@@ -391,6 +437,43 @@ function deleteSwapGroup(ss, grp, id) {
     if (matches) rowsToDelete.push(i + 1);
   }
   rowsToDelete.sort(function (a, b) { return b - a; }).forEach(function (rowNum) { sh.deleteRow(rowNum); });
+}
+
+// ── 진도표: id | cls | subject | date | period | body | writer | updatedAt ──
+// 반(cls, 예 "1-6") + 과목(subject, 예 "통합과학2") 조합별로 날짜·교시마다 한 줄씩.
+// 같은 반·과목·날짜·교시에 다시 저장하면 새 줄을 만들지 않고 그 줄의 내용만 덮어씁니다.
+const PROGRESS_HEADER = ['id', 'cls', 'subject', 'date', 'period', 'body', 'writer', 'updatedAt'];
+
+function readProgress(ss, cls, subject) {
+  const sh = ss.getSheetByName(PROGRESS_SHEET);
+  if (!sh) return [];
+  const rows = sh.getDataRange().getDisplayValues();
+  const out = [];
+  for (let i = 1; i < rows.length; i++) {
+    const r = rows[i];
+    if (!r[0]) continue;
+    if (String(r[1]) !== String(cls) || String(r[2]) !== String(subject)) continue;
+    out.push({ id: r[0], cls: r[1], subject: r[2], date: r[3], period: r[4] ? Number(r[4]) : '', body: r[5] || '', writer: r[6] || '' });
+  }
+  out.sort(function (a, b) { return (a.date + '_' + a.period).localeCompare(b.date + '_' + b.period); });
+  return out;
+}
+
+function upsertProgress(ss, entry, editor) {
+  if (!entry.cls || !entry.subject || !entry.date || !entry.period) throw new Error('반·과목·날짜·교시가 모두 있어야 합니다.');
+  const sh = getOrCreateSheet(ss, PROGRESS_SHEET, PROGRESS_HEADER);
+  const values = sh.getDataRange().getValues();
+  const now = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm');
+  for (let i = 1; i < values.length; i++) {
+    const r = values[i];
+    if (String(r[1]) === String(entry.cls) && String(r[2]) === String(entry.subject) &&
+      String(r[3]) === String(entry.date) && String(r[4]) === String(entry.period)) {
+      sh.getRange(i + 1, 6, 1, 3).setValues([[entry.body || '', editor, now]]);
+      return;
+    }
+  }
+  const id = 'p' + new Date().getTime();
+  sh.appendRow([id, entry.cls, entry.subject, entry.date, entry.period, entry.body || '', editor, now]);
 }
 
 function jsonOut(obj) {
