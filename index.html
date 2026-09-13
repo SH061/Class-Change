@@ -182,6 +182,8 @@ table.tt.clsTT td .sub{font-size:16px;font-weight:700}
 .calGridTable th{padding:8px 4px;font-size:13.5px;color:var(--muted);text-align:center;font-weight:700;border-bottom:1px solid var(--hairline)}
 .calGridTable td{border:1px solid var(--hairline);vertical-align:top;height:90px;padding:6px 5px;text-align:center}
 .calGridTable td.otherMonth{background:var(--soft)}
+.calGridTable td.calAddCell{cursor:pointer}
+.calGridTable td.calAddCell:hover{background:var(--soft)}
 .calGridTable .daynum{display:block;font-weight:700;font-size:15px;color:var(--ink);margin:0 auto 5px}
 .calGridTable .evt{display:block;margin:0 auto 3px;font-size:11px;font-weight:700;color:#fff;border-radius:6px;padding:3px 5px;cursor:pointer;line-height:1.3;text-align:center}
 .calGridTable .evt:hover{filter:brightness(1.08)}
@@ -1362,7 +1364,7 @@ function enterApp(){
   renderAll();showView('tt');
   checkTodayNotice();
 }
-function renderAll(){renderPbar();renderTimetable();renderSwap();renderJilji();renderChgList();renderMgr();document.getElementById('navMgrBtn').hidden=!mgrAccessOK()}
+function renderAll(){renderPbar();renderTimetable();renderSwap();renderJilji();renderChgList();renderMgr();renderClassTT2();document.getElementById('navMgrBtn').hidden=!mgrAccessOK()}
 function showView(v){
   if(v==='mgr'&&!mgrAccessOK())v='tt';
   document.querySelectorAll('nav.tabs button').forEach(b=>b.classList.toggle('on',b.dataset.v===v));
@@ -1561,8 +1563,8 @@ function renderCalModal(){
       if(!d){html+='<td class="otherMonth"></td>';continue}
       const isoD=CAL_Y+'-'+String(CAL_M).padStart(2,'0')+'-'+String(d).padStart(2,'0');
       const evts=[];all.forEach((e,i)=>{if(isoD>=e.date&&isoD<=e.end)evts.push({e,i})});
-      html+='<td><span class="daynum">'+d+'</span>'+
-        evts.map(x=>'<span class="evt" style="background:'+AC_CATCOLOR[x.e.type]+'" onclick="showCalDetail('+x.i+')">'+(x.e.title||x.e.type)+'</span>').join('')+
+      html+='<td'+(isHomeroom()?' class="calAddCell" onclick="startCalAddForDate(\''+isoD+'\')"':'')+'><span class="daynum">'+d+'</span>'+
+        evts.map(x=>'<span class="evt" style="background:'+AC_CATCOLOR[x.e.type]+'" onclick="event.stopPropagation();showCalDetail('+x.i+')">'+(x.e.title||x.e.type)+'</span>').join('')+
         '</td>';
     }
     html+='</tr>';
@@ -1607,6 +1609,15 @@ function cancelCalEdit(){
   document.getElementById('calSubmitBtn').textContent='등록';
   document.getElementById('calCancelEditBtn').hidden=true;
   resetCalForm();
+}
+// 달력에서 날짜 칸(일정이 없는 빈 부분)을 누르면 그 날짜가 채워진 채로 등록 폼이 바로 열림
+function startCalAddForDate(isoD){
+  if(!isHomeroom())return;
+  cancelCalEdit();
+  document.getElementById('calAddForm').hidden=false;
+  document.getElementById('calStart').value=isoD;
+  document.getElementById('calAddForm').scrollIntoView({block:'nearest'});
+  document.getElementById('calTitle').focus();
 }
 function resetCalForm(){
   document.getElementById('calStart').value='';document.getElementById('calEnd').value='';
