@@ -1614,6 +1614,7 @@ function cancelCalEdit(){
 function startCalAddForDate(isoD){
   if(!isHomeroom())return;
   cancelCalEdit();
+  document.getElementById('calDetail').hidden=true; // 이전에 클릭했던 다른 날짜의 상세 내용이 남아있지 않게 함
   document.getElementById('calAddForm').hidden=false;
   document.getElementById('calStart').value=isoD;
   document.getElementById('calAddForm').scrollIntoView({block:'nearest'});
